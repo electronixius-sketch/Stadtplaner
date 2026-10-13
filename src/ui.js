@@ -333,6 +333,7 @@ export class UI {
     this.infoRoad = -1;
     this.renderInfo();
     $('info').classList.add('show');
+    $('viewsPanel').classList.remove('show');
     this.g.highlight(b);
   }
 
@@ -353,6 +354,7 @@ export class UI {
       </div>`;
     $('infoClose').onclick = () => this.closeInfo();
     $('info').classList.add('show');
+    $('viewsPanel').classList.remove('show');
     this.g.highlight(null);
   }
 
@@ -443,6 +445,7 @@ export class UI {
     const p = $('viewsPanel');
     if (p.classList.contains('show')) { p.classList.remove('show'); return; }
     this.openCategory(null);
+    this.closeInfo();
     p.innerHTML = '<div class="sp-title">🗺️ Info-Ansichten</div><div class="views"></div>';
     const wrap = p.querySelector('.views');
     const off = document.createElement('button');
