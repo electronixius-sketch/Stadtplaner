@@ -165,7 +165,7 @@ export function createGhostMaterial() {
   return m;
 }
 
-export function createWaterMaterial(depthTex, ext) {
+export function createWaterMaterial(depthTex, ext, maskTex) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -173,6 +173,8 @@ export function createWaterMaterial(depthTex, ext) {
       uTime: uniforms.uTime,
       uNight: uniforms.uNight,
       uDepth: { value: depthTex },
+      uMask: { value: maskTex },
+      uMaskExt: { value: new THREE.Vector4(-ext.P, -ext.P, ext.ES, ext.ES) },
       uExt: { value: new THREE.Vector4(-ext.P, -ext.P, ext.CS - 1, ext.CS - 1) },
       uSunDir: { value: new THREE.Vector3(0.3, 0.8, 0.2) },
       uSunCol: { value: new THREE.Color(1, 1, 1) },
@@ -197,7 +199,9 @@ export function createWaterMaterial(depthTex, ext) {
       uniform float uNight;
       uniform float uDay;
       uniform sampler2D uDepth;
+      uniform sampler2D uMask;
       uniform vec4 uExt;
+      uniform vec4 uMaskExt;
       uniform vec3 uSunDir;
       uniform vec3 uSunCol;
       uniform vec3 uSkyCol;
@@ -209,6 +213,8 @@ export function createWaterMaterial(depthTex, ext) {
       varying vec3 vW;
       void main() {
         vec2 uv = (vW.xz - uExt.xy) / uExt.zw;
+        float mask = texture2D(uMask, (vW.xz - uMaskExt.xy) / uMaskExt.zw).r;
+        if (mask < 0.44) discard;
         float depth = texture2D(uDepth, uv).r;
         vec2 p = vW.xz;
         float t = uTime;
@@ -224,9 +230,10 @@ export function createWaterMaterial(depthTex, ext) {
         vec3 H = normalize(normalize(uSunDir) + V);
         float spec = pow(max(dot(n, H), 0.0), 140.0);
         col += uSunCol * spec * 1.6;
-        float foam = smoothstep(0.08, 0.0, depth) * (0.55 + 0.45 * sin(t * 2.0 + p.x * 6.0 + p.y * 4.0));
+        float edge = smoothstep(0.62, 0.46, mask);
+        float foam = max(smoothstep(0.08, 0.0, depth) * 0.6, edge) * (0.55 + 0.45 * sin(t * 2.0 + p.x * 6.0 + p.y * 4.0));
         col = mix(col, vec3(0.85, 0.92, 0.95) * mix(0.3, 1.0, uDay), foam * 0.45);
-        float alpha = mix(0.55, 0.93, smoothstep(0.0, 0.3, depth));
+        float alpha = mix(0.6, 0.93, smoothstep(0.0, 0.3, depth)) * smoothstep(0.44, 0.5, mask);
         float fd = length(cameraPosition - vW);
         col = mix(col, uFogColor, smoothstep(uFogNear, uFogFar, fd));
         gl_FragColor = vec4(col, alpha);

@@ -346,7 +346,9 @@ export class PlaceTool extends Tool {
     this.g.pending = null;
     this.g.ui.positionConfirm(null);
     if (this.spec.unique) { this.g.ui.selectTool(null); return; }
-    this.place(this.last);
+    // Vorschau ausblenden, bis erneut getippt bzw. die Maus bewegt wird
+    this.g.preview.clear();
+    this.label(null);
   }
 
   cancel() {
@@ -374,10 +376,8 @@ export class TreeTool extends Tool {
   }
   add(t) {
     if (!t) return;
-    for (let dy = 0; dy <= 0; dy++) {
-      const k = t.y * this.w.size + t.x;
-      if (this.ok(t) && !this.tiles.has(k)) this.tiles.set(k, [t.x, t.y]);
-    }
+    const k = t.y * this.w.size + t.x;
+    if (this.ok(t) && !this.tiles.has(k)) this.tiles.set(k, [t.x, t.y]);
     const list = [...this.tiles.values()].map(([x, y]) => ({ x, y, c: OK, a: 0.5 }));
     this.g.preview.setTiles(list);
     this.label(`${this.tiles.size} Bäume · ${fmtMoney(this.tiles.size * TREE_COST)}`, this.tiles.size * TREE_COST > this.sim.money);

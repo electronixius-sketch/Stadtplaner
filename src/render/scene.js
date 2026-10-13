@@ -122,6 +122,15 @@ export class SceneRenderer {
     const dpr = window.devicePixelRatio || 1;
     const max = q === 'low' ? 1 : q === 'medium' ? 1.5 : 2;
     this.renderer.setPixelRatio(Math.min(dpr, max));
+    // Weichere, aber teurere Schatten nur auf hoher Qualität
+    const type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    const size = q === 'low' ? 1024 : 2048;
+    if (this.renderer.shadowMap.type !== type || this.sun.shadow.mapSize.x !== size) {
+      this.renderer.shadowMap.type = type;
+      this.sun.shadow.mapSize.set(size, size);
+      if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+      this.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    }
     this.resize();
   }
 

@@ -81,11 +81,13 @@ export function createTerrain(world, mats) {
   depthTex.magFilter = THREE.LinearFilter;
   depthTex.minFilter = THREE.LinearFilter;
   depthTex.needsUpdate = true;
-  const wmat = createWaterMaterial(depthTex, world.ext);
+  const maskTex = createWaterMask(world.ext);
+  const wmat = createWaterMaterial(depthTex, world.ext, maskTex);
   const wgeo = new THREE.PlaneGeometry(CS - 1, CS - 1, 1, 1);
   wgeo.rotateX(-Math.PI / 2);
   const water = new THREE.Mesh(wgeo, wmat);
-  water.position.set(-P + (CS - 1) / 2, WATER_LEVEL, -P + (CS - 1) / 2);
+  // Die Oberfläche liegt knapp über dem Land; die weiche Maske schneidet die Uferlinie zu
+  water.position.set(-P + (CS - 1) / 2, 0.008, -P + (CS - 1) / 2);
   water.renderOrder = 1;
   water.updateMatrix();
   water.matrixAutoUpdate = false;
@@ -101,6 +103,42 @@ export function createTerrain(world, mats) {
   const group = new THREE.Group();
   group.add(terrain, water, outRoad);
   return { group, terrain, water, waterMat: wmat, dispose() {
-    geo.dispose(); wgeo.dispose(); wmat.dispose(); depthTex.dispose(); outRoad.geometry.dispose();
+    geo.dispose(); wgeo.dispose(); wmat.dispose(); depthTex.dispose(); maskTex.dispose(); outRoad.geometry.dispose();
   } };
+}
+
+// Weichgezeichnete Wassermaske (4 Texel pro Feld) für runde Uferlinien
+function createWaterMask(ext) {
+  const { ES, types } = ext;
+  const R = 4, N = ES * R;
+  let a = new Float32Array(N * N), b = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) a[y * N + x] = types[((y / R) | 0) * ES + ((x / R) | 0)] === T_WATER ? 1 : 0;
+  }
+  const blur = (src, dst, r, horiz) => {
+    const w = 2 * r + 1;
+    for (let j = 0; j < N; j++) {
+      let sum = 0;
+      for (let k = -r; k <= r; k++) {
+        const i = Math.min(N - 1, Math.max(0, k));
+        sum += horiz ? src[j * N + i] : src[i * N + j];
+      }
+      for (let i = 0; i < N; i++) {
+        if (horiz) dst[j * N + i] = sum / w; else dst[i * N + j] = sum / w;
+        const add = Math.min(N - 1, i + r + 1), rem = Math.max(0, i - r);
+        sum += (horiz ? src[j * N + add] : src[add * N + j]) - (horiz ? src[j * N + rem] : src[rem * N + j]);
+      }
+    }
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    blur(a, b, 3, true);
+    blur(b, a, 3, false);
+  }
+  const data = new Uint8Array(N * N * 4);
+  for (let i = 0; i < N * N; i++) { data[i * 4] = Math.round(a[i] * 255); data[i * 4 + 3] = 255; }
+  const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
 }
