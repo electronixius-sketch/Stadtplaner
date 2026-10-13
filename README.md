@@ -26,7 +26,8 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 **Veröffentlichen mit GitHub Pages:** In den Repository-Einstellungen unter
 *Settings → Pages* als Quelle „GitHub Actions“ wählen. Der Workflow
 `.github/workflows/pages.yml` veröffentlicht das Spiel bei jedem Push auf `main`
-(oder manuell über *Actions → Deploy → Run workflow*).
+(oder manuell über *Actions → Deploy → Run workflow*). Danach ist es unter
+`https://<benutzername>.github.io/<repository>/` erreichbar.
 
 ## Features
 
@@ -56,7 +57,10 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 - **Zwitscher-Feed** mit Meldungen der Bürger, Warnungen der Stadtverwaltung und einer
   Einführung für die ersten Schritte.
 - **Tag-Nacht-Zyklus** mit beleuchteten Fenstern, Straßenlaternen und Leuchtreklamen,
-  Echtzeit-Schatten, animiertem Wasser, Rauch, Feuer und drehenden Windrädern.
+  Echtzeit-Schatten, animiertem Wasser mit weichen Uferlinien, Rauch, Feuer und drehenden Windrädern.
+- **Leben in der Stadt**: Autos, Lkw, Busse und Löschfahrzeuge, Fußgänger auf den Gehwegen
+  (beim Hineinzoomen) und ziehende Wolken (beim Herauszoomen).
+- **Grafikoptionen** (Qualität, Schatten, Fahrzeuganzahl, Tag/Nacht, Symbole, Ton) für ältere Tablets.
 - **Rückgängig** für jede Bauaktion, automatisches Speichern, Export/Import von Spielständen.
 
 ## Steuerung
