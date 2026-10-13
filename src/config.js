@@ -99,6 +99,10 @@ export const SERVICES = {
     unlock: 0, desc: 'Leitet 12 Einheiten Abwasser ab. Muss am Ufer stehen.' },
   treatment: { cat: 'water', name: 'Kläranlage', icon: '♻️', w: 2, h: 2, cost: 6000, upkeep: 320, sewage: 50, needsWater: true,
     powerUse: 2, jobs: 12, unlock: 3, desc: 'Reinigt 50 Einheiten Abwasser.' },
+  busdepot: { cat: 'transport', name: 'Busdepot', icon: '🚌', w: 2, h: 2, cost: 4000, upkeep: 280, powerUse: 1, jobs: 14, unlock: 1,
+    desc: 'Betreibt den Busverkehr. Ohne Depot fahren keine Busse.' },
+  busstop: { cat: 'transport', name: 'Bushaltestelle', icon: '🚏', w: 1, h: 1, cost: 250, upkeep: 15, cover: { type: 'transit', r: 7 },
+    unlock: 1, desc: 'Bürger im Umkreis fahren Bus statt Auto – weniger Stau, mehr Bodenwert.' },
   landfill: { cat: 'garbage', name: 'Mülldeponie', icon: '🗑️', w: 3, h: 3, cost: 3500, upkeep: 260, cover: { type: 'garbage', r: 26 },
     pollution: { s: 35, r: 6 }, powerUse: 0.5, jobs: 10, unlock: 1, desc: 'Müllabfuhr im großen Umkreis.' },
   incinerator: { cat: 'garbage', name: 'Müllverbrennung', icon: '🔥', w: 2, h: 2, cost: 9000, upkeep: 420,
@@ -149,9 +153,9 @@ export const MILESTONES = [
   { pop: 50000, name: 'Megastadt', reward: 100000 },
 ];
 
-export const COVERAGE_TYPES = ['police', 'fire', 'health', 'edu1', 'edu2', 'edu3', 'garbage', 'parks', 'landmark'];
+export const COVERAGE_TYPES = ['police', 'fire', 'health', 'edu1', 'edu2', 'edu3', 'garbage', 'parks', 'landmark', 'transit'];
 
 export const EXPENSE_CATS = {
   roads: 'Straßen', power: 'Strom', water: 'Wasser & Abwasser', garbage: 'Müllentsorgung', police: 'Polizei',
-  fire: 'Feuerwehr', health: 'Gesundheit', edu: 'Bildung', parks: 'Parks & Kultur',
+  fire: 'Feuerwehr', health: 'Gesundheit', edu: 'Bildung', parks: 'Parks & Kultur', transport: 'Nahverkehr',
 };

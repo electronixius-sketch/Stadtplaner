@@ -12,6 +12,7 @@ import { VehicleRenderer } from './render/vehicles.js';
 import { Effects } from './render/effects.js';
 import { Overlay } from './render/overlay.js';
 import { Preview } from './render/preview.js';
+import { TreeLayer } from './render/trees.js';
 import { CameraController } from './camera.js';
 import { Input } from './input.js';
 import { createTool } from './tools.js';
@@ -47,6 +48,7 @@ class Game {
     this.preview = new Preview(this.scene, this.mats);
     this.effects = new Effects(this.scene, this.mats);
     this.vehicles = new VehicleRenderer(this.scene, this.mats, 600);
+    this.trees = new TreeLayer(this.scene, this.mats);
     this.speed = 1;
     this.prevSpeed = 1;
     this.clock = 8.5;
@@ -94,6 +96,8 @@ class Game {
     if (!this.chunks) this.chunks = new ChunkManager(this.scene, world, this.mats);
     else this.chunks.setWorld(world);
     this.chunks.rebuildAll();
+    this.trees.setWorld(world);
+    this.trees.update();
     this.effects.clear();
     this.preview.clear();
     this.undoStack = [];
@@ -386,6 +390,7 @@ class Game {
     this.renderer.setTime(this.settings.dayNight ? this.clock : 12.5, this.terrain.waterMat);
     this.mats.zone.color.setScalar(1 - uniforms.uNight.value * 0.6);
     this.chunks.update(this.started ? 10 : 30);
+    this.trees.update();
     this.vehicles.update(this.traffic.vehicles);
     this.effects.update(dt, this.time, this.started ? TRAFFIC_SPEED[this.speed] : 1, this.chunks, this.camera.dist);
     this.renderer.updateFrame(this.camera.target, this.camera.dist);

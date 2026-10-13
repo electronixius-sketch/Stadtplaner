@@ -11,8 +11,8 @@ const LEVEL_SCORE = [0, 36, 48, 60, 72];
 
 function emptyLedger() {
   return {
-    income: { R: 0, C: 0, I: 0, O: 0 },
-    expense: { roads: 0, power: 0, water: 0, garbage: 0, police: 0, fire: 0, health: 0, edu: 0, parks: 0 },
+    income: { R: 0, C: 0, I: 0, O: 0, T: 0 },
+    expense: { roads: 0, power: 0, water: 0, garbage: 0, police: 0, fire: 0, health: 0, edu: 0, parks: 0, transport: 0 },
   };
 }
 
@@ -29,7 +29,7 @@ export class Simulation {
       pop: 0, workforce: 0, employed: 0, jobs: 0, jobsC: 0, jobsI: 0, jobsO: 0, jobsS: 0, commuters: 0,
       unemployment: 0, happiness: 60, landValue: 20, eduWorkers: 0, eduAvg: 0,
       powerSup: 0, powerDem: 0, waterSup: 0, waterDem: 0, sewSup: 0, sewDem: 0,
-      buildings: 0, crime: 0, pollution: 0, health: 0, zones: { R: 0, C: 0, I: 0, O: 0 },
+      buildings: 0, crime: 0, pollution: 0, health: 0, zones: { R: 0, C: 0, I: 0, O: 0 }, riders: 0,
     };
     this.month = emptyLedger();
     this.lastMonth = null;
@@ -147,12 +147,16 @@ export class Simulation {
     for (const t of COVERAGE_TYPES) this.cov[t].fill(0);
     this.fireStations = [];
     this.cityHall = false;
+    // Haltestellen funktionieren nur mit einem Busdepot im selben Straßennetz
+    this.depotComps = new Set();
+    for (const b of w.buildings.values()) if (b.kind === 'service' && b.def === 'busdepot' && b.comp >= 0 && b.power) this.depotComps.add(b.comp);
     for (const b of w.buildings.values()) {
       if (b.kind !== 'service') continue;
       const def = SERVICES[b.def];
       if (b.def === 'cityhall' && b.comp >= 0) this.cityHall = true;
       if (!def.cover || b.comp < 0) continue;
       if (def.powerUse && !b.power) continue;
+      if (b.def === 'busstop' && !this.depotComps.has(b.comp)) continue;
       const arr = this.cov[def.cover.type];
       const r = def.cover.r, s = def.cover.s ?? 1;
       const cx = b.x + b.W / 2, cy = b.y + b.H / 2;
@@ -242,7 +246,7 @@ export class Simulation {
       const edu = Math.max(cv.edu1[i], cv.edu2[i], cv.edu3[i]);
       const wd = w.waterDist[i];
       let v = 22 + cv.parks[i] * 26 + cv.police[i] * 6 + cv.fire[i] * 5 + cv.health[i] * 7 + edu * 6 + cv.garbage[i] * 3
-        + cv.landmark[i] * 22 + (wd <= 4 ? (5 - wd) * 3.5 : 0) - pol[i] * 0.55 - noise[i] * 0.15 - crime[i] * 0.08;
+        + cv.landmark[i] * 22 + cv.transit[i] * 6 + (wd <= 4 ? (5 - wd) * 3.5 : 0) - pol[i] * 0.55 - noise[i] * 0.15 - crime[i] * 0.08;
       v = clamp(v, 0, 100);
       lv[i] = lv[i] * 0.5 + v * 0.5;
       if (w.bld[i] >= 0) {
@@ -292,7 +296,7 @@ export class Simulation {
       b.garbage = cv.garbage[ci] > 0.05;
       if (pop > 400) h += b.garbage ? 3 : -10;
       h += cv.police[ci] * 6 + cv.fire[ci] * 4 + cv.health[ci] * 7 + cv.parks[ci] * 9;
-      if (key === 'R') h += b.edu * 6;
+      if (key === 'R') h += b.edu * 6 + cv.transit[ci] * 3;
       h -= this.pollution[ci] * (key === 'I' ? 0.08 : 0.32);
       h -= this.noise[ci] * (key === 'I' ? 0 : 0.12);
       h -= this.crime[ci] * 0.15;
@@ -346,7 +350,7 @@ export class Simulation {
   // ---------- Bevölkerung und Arbeitsplätze ----------
   updatePopulation() {
     const w = this.w, rng = this.rng;
-    let pop = 0, eduPop = 0, jC = 0, jI = 0, jO = 0, jS = 0, bcount = 0;
+    let pop = 0, eduPop = 0, jC = 0, jI = 0, jO = 0, jS = 0, bcount = 0, riders = 0;
     const dR = this.demand.R;
     const zc = { R: 0, C: 0, I: 0, O: 0 };
     for (const b of w.buildings.values()) {
@@ -370,6 +374,7 @@ export class Simulation {
         if (b.occ > b.cap) b.occ = b.cap;
         pop += b.occ;
         eduPop += b.occ * b.edu;
+        riders += b.occ * this.cov.transit[w.idx(b.x + (b.W >> 1), b.y + (b.H >> 1))] * 0.4;
       } else if (active) {
         if (key === 'C') jC += b.cap; else if (key === 'I') jI += b.cap; else jO += b.cap;
       }
@@ -388,7 +393,7 @@ export class Simulation {
     Object.assign(this.stats, {
       pop, workforce, employed, jobs, jobsC: jC, jobsI: jI, jobsO: jO, jobsS: jS, commuters,
       unemployment: workforce > 0 ? (workforce - employed) / workforce : 0,
-      eduWorkers: eduPop * 0.55, buildings: bcount, zones: zc,
+      eduWorkers: eduPop * 0.55, buildings: bcount, zones: zc, riders,
     });
   }
 
@@ -577,6 +582,9 @@ export class Simulation {
       L.income[key] += v;
       inc += v;
     }
+    const tickets = this.stats.riders * 0.03;
+    L.income.T += tickets;
+    inc += tickets;
     let roads = 0;
     for (const k of [1, 2, 3]) roads += w.roadCount[k] * ROAD_TYPES[k].upkeep;
     roads += w.roadCount.bridge * 3;
@@ -658,6 +666,13 @@ export class Simulation {
       'month', 'lastMonth']) {
       if (o[k] !== undefined) this[k] = o[k];
     }
+    const fix = (L) => {
+      if (!L) return L;
+      const e = emptyLedger();
+      return Object.assign({}, L, { income: Object.assign(e.income, L.income), expense: Object.assign(e.expense, L.expense) });
+    };
+    this.month = fix(this.month) || emptyLedger();
+    this.lastMonth = fix(this.lastMonth);
     if (o.landValue) for (let i = 0; i < this.landValue.length && i < o.landValue.length; i++) this.landValue[i] = o.landValue[i];
     this.covDirty = true;
   }

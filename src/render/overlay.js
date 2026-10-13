@@ -18,6 +18,7 @@ export const VIEWS = {
   education: { name: 'Bildung', icon: '🎓', low: 'keine', high: 'gut abgedeckt' },
   garbage: { name: 'Müllabfuhr', icon: '🗑️', low: 'keine', high: 'abgedeckt' },
   parks: { name: 'Freizeit & Parks', icon: '🌳', low: 'keine', high: 'viel Grün' },
+  transit: { name: 'Nahverkehr', icon: '🚌', low: 'kein Anschluss', high: 'gut angebunden' },
 };
 
 const RED = [224, 49, 49], YEL = [250, 176, 5], GRN = [55, 178, 77], BLUE = [34, 139, 230], BROWN = [150, 95, 30],

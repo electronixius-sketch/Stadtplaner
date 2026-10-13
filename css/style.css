@@ -108,6 +108,7 @@ input { font: inherit; }
   border: 1px solid var(--line); opacity: 0; transform: translateX(-20px); transition: all 0.35s; font-size: 13.5px;
 }
 .chirp.show { opacity: 1; transform: none; }
+body.sub-open #feed, body.sub-open #legend { opacity: 0; transition: opacity 0.2s; }
 .chirp.warn { border-color: rgba(255, 107, 107, 0.6); }
 .chirp .av { font-size: 22px; }
 .chirp b { font-size: 12px; color: var(--accent); }

@@ -1,12 +1,11 @@
 // Geländemesh (inkl. Umland), Wasseroberfläche, Autobahn außerhalb der Karte und Umlandwälder.
 import * as THREE from 'three';
 import { makeNoise } from '../noise.js';
-import { rgb, mixc, scalec, clamp, smoothstep, mulberry32, pick } from '../util.js';
+import { rgb, mixc, scalec, clamp, smoothstep } from '../util.js';
 import { T_WATER, T_ROCK, WATER_LEVEL } from '../config.js';
 import { MeshBuilder } from './builder.js';
 import { addRoadTile } from './roadGeo.js';
 import { createWaterMaterial } from './materials.js';
-import { LEAF, LEAF2, CONIFER, CONIFER2 } from './buildingGeo.js';
 
 const G1 = rgb(0x84b05e), G2 = rgb(0x6f9c4c), G3 = rgb(0x93b86b), MEADOW = rgb(0xa8bf72);
 const SAND = rgb(0xd8c690), MUD = rgb(0x8c7a55), ROCK = rgb(0x8a8378), ROCK2 = rgb(0x6f6a62), SNOW = rgb(0xf4f6f8);
@@ -99,64 +98,9 @@ export function createTerrain(world, mats) {
   outRoad.receiveShadow = true;
   outRoad.matrixAutoUpdate = false;
 
-  const forest = createOutsideForest(world, mats);
-
   const group = new THREE.Group();
-  group.add(terrain, water, outRoad, ...forest);
+  group.add(terrain, water, outRoad);
   return { group, terrain, water, waterMat: wmat, dispose() {
     geo.dispose(); wgeo.dispose(); wmat.dispose(); depthTex.dispose(); outRoad.geometry.dispose();
-    for (const f of forest) f.geometry.dispose();
   } };
-}
-
-function createOutsideForest(world, mats) {
-  const t = world.ext.outTrees;
-  const count = t.length / 5;
-  const bD = new MeshBuilder();
-  bD.tree(0, 0, 1, 0, rgb(0xffffff), rgb(0xd8d8d8), rgb(0x6b4a2b));
-  const bC = new MeshBuilder();
-  bC.tree(0, 0, 1.1, 1, rgb(0xffffff), rgb(0xe0e0e0), rgb(0x6b4a2b));
-  // Stamm separat färben: Stammfarbe soll nicht eingefärbt werden -> aWin 5 für Stamm
-  for (const b of [bD, bC]) {
-    for (let i = 0; i < b.win.length; i++) {
-      const isTrunk = b.col[i * 3] < 0.5 && b.col[i * 3 + 1] < 0.3;
-      b.win[i] = isTrunk ? 5 : 0;
-    }
-  }
-  let nD = 0, nC = 0;
-  for (let i = 0; i < count; i++) if (t[i * 5 + 4] < 0.38) nC++; else nD++;
-  const mD = new THREE.InstancedMesh(bD.toGeometry(), mats.world, Math.max(1, nD));
-  const mC = new THREE.InstancedMesh(bC.toGeometry(), mats.world, Math.max(1, nC));
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const s = new THREE.Vector3();
-  const p = new THREE.Vector3();
-  const color = new THREE.Color();
-  const rng = mulberry32(world.seed + 5);
-  let iD = 0, iC = 0;
-  for (let i = 0; i < count; i++) {
-    const x = t[i * 5], y = t[i * 5 + 1], z = t[i * 5 + 2], sc = t[i * 5 + 3], r = t[i * 5 + 4];
-    p.set(x, y, z);
-    s.set(sc, sc * (0.85 + rng() * 0.3), sc);
-    q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, rng() * 6.28);
-    m.compose(p, q, s);
-    if (r < 0.38) {
-      const c = pick(rng, CONIFER);
-      color.setRGB(c[0], c[1], c[2], THREE.LinearSRGBColorSpace);
-      mC.setMatrixAt(iC, m); mC.setColorAt(iC, color); iC++;
-    } else {
-      const c = pick(rng, rng() < 0.5 ? LEAF : LEAF2);
-      color.setRGB(c[0], c[1], c[2], THREE.LinearSRGBColorSpace);
-      mD.setMatrixAt(iD, m); mD.setColorAt(iD, color); iD++;
-    }
-  }
-  mD.count = iD; mC.count = iC;
-  for (const mm of [mD, mC]) {
-    mm.castShadow = false;
-    mm.receiveShadow = true;
-    mm.instanceMatrix.needsUpdate = true;
-    if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
-    mm.computeBoundingSphere();
-  }
-  return [mD, mC];
 }

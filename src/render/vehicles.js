@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { MeshBuilder } from './builder.js';
 import { rgb } from '../util.js';
-import { VEH_TRUCK, VEH_FIRE } from '../traffic.js';
+import { VEH_TRUCK, VEH_FIRE, VEH_BUS } from '../traffic.js';
 
 const CAR_COLORS = [0xd63031, 0x0984e3, 0xfdcb6e, 0xf5f6fa, 0x2d3436, 0x00b894, 0x6c5ce7, 0xe17055, 0xb2bec3, 0x74b9ff, 0x8e44ad, 0x1e272e]
   .map((h) => new THREE.Color(h));
@@ -38,14 +38,27 @@ function truckGeometry(fire) {
   return B.toGeometry();
 }
 
+function busGeometry() {
+  const B = new MeshBuilder();
+  const body = rgb(0xf2b705), glass = rgb(0x26313b), white = rgb(0xf4f4f0);
+  B.box(-0.062, 0.015, -0.2, 0.062, 0.13, 0.2, body, 5);
+  B.box(-0.0635, 0.07, -0.18, 0.0635, 0.11, 0.19, glass, 5, null);
+  B.box(-0.055, 0.07, 0.199, 0.055, 0.115, 0.203, glass, 5, null);
+  B.box(-0.063, 0.02, -0.2, 0.063, 0.04, 0.2, white, 5, null);
+  B.box(-0.045, 0.025, 0.2, -0.025, 0.045, 0.205, rgb(0xfff4c8), 2);
+  B.box(0.025, 0.025, 0.2, 0.045, 0.045, 0.205, rgb(0xfff4c8), 2);
+  B.box(-0.03, 0.115, 0.17, 0.03, 0.128, 0.205, rgb(0x7fd0ff), 2);
+  return B.toGeometry();
+}
+
 export class VehicleRenderer {
   constructor(scene, mats, max = 600) {
     this.max = max;
     this.cars = new THREE.InstancedMesh(carGeometry(), mats.world, max);
     this.trucks = new THREE.InstancedMesh(truckGeometry(false), mats.world, Math.ceil(max / 2));
     this.fire = new THREE.InstancedMesh(truckGeometry(true), mats.world, 32);
-    this.fire.material = mats.world;
-    for (const m of [this.cars, this.trucks, this.fire]) {
+    this.buses = new THREE.InstancedMesh(busGeometry(), mats.world, 48);
+    for (const m of [this.cars, this.trucks, this.fire, this.buses]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
       m.castShadow = false;
@@ -55,21 +68,23 @@ export class VehicleRenderer {
     }
     const c = new THREE.Color(1, 1, 1);
     for (let i = 0; i < max; i++) this.cars.setColorAt(i, c);
-    for (let i = 0; i < this.trucks.count || i < Math.ceil(max / 2); i++) this.trucks.setColorAt(i, c);
-    this.fire.setColorAt(0, new THREE.Color(0xd63a2f));
-    for (let i = 1; i < 32; i++) this.fire.setColorAt(i, new THREE.Color(0xd63a2f));
+    for (let i = 0; i < Math.ceil(max / 2); i++) this.trucks.setColorAt(i, c);
+    for (let i = 0; i < 32; i++) this.fire.setColorAt(i, new THREE.Color(0xd63a2f));
+    for (let i = 0; i < 48; i++) this.buses.setColorAt(i, c);
   }
 
-  setVisible(v) { this.cars.visible = this.trucks.visible = this.fire.visible = v; }
+  setVisible(v) { this.cars.visible = this.trucks.visible = this.fire.visible = this.buses.visible = v; }
 
   update(vehicles) {
-    let nc = 0, nt = 0, nf = 0;
+    let nc = 0, nt = 0, nf = 0, nb = 0;
     const ca = this.cars.instanceMatrix.array, ta = this.trucks.instanceMatrix.array, fa = this.fire.instanceMatrix.array;
+    const ba = this.buses.instanceMatrix.array;
     const cc = this.cars.instanceColor.array, tc = this.trucks.instanceColor.array;
     const tMax = this.trucks.instanceMatrix.count;
     for (const v of vehicles) {
       let arr, idx;
       if (v.type === VEH_FIRE) { if (nf >= 32) continue; arr = fa; idx = nf++; }
+      else if (v.type === VEH_BUS) { if (nb >= 48) continue; arr = ba; idx = nb++; }
       else if (v.type === VEH_TRUCK) {
         if (nt >= tMax) continue;
         arr = ta; idx = nt++;
@@ -88,7 +103,8 @@ export class VehicleRenderer {
       arr[o + 8] = s; arr[o + 9] = 0; arr[o + 10] = c; arr[o + 11] = 0;
       arr[o + 12] = v.x; arr[o + 13] = 0.02; arr[o + 14] = v.z; arr[o + 15] = 1;
     }
-    this.cars.count = nc; this.trucks.count = nt; this.fire.count = nf;
+    this.cars.count = nc; this.trucks.count = nt; this.fire.count = nf; this.buses.count = nb;
+    this.buses.instanceMatrix.needsUpdate = true;
     this.cars.instanceMatrix.needsUpdate = true;
     this.trucks.instanceMatrix.needsUpdate = true;
     this.fire.instanceMatrix.needsUpdate = true;

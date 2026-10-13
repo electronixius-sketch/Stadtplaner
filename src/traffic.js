@@ -45,7 +45,7 @@ class MinHeap {
   }
 }
 
-export const VEH_CAR = 0, VEH_TRUCK = 1, VEH_FIRE = 2;
+export const VEH_CAR = 0, VEH_TRUCK = 1, VEH_FIRE = 2, VEH_BUS = 3;
 
 export class Traffic {
   constructor(world, sim) {
@@ -101,6 +101,16 @@ export class Traffic {
         if (key === 'I') { L.ind.push(b); ind.push(b); }
       }
     }
+    // Aktive Haltestellen je Straßennetz (nur mit Busdepot)
+    const stops = new Map();
+    const depots = this.sim.depotComps || new Set();
+    for (const b of w.buildings.values()) {
+      if (b.kind !== 'service' || b.def !== 'busstop' || b.access < 0 || !depots.has(b.comp)) continue;
+      if (!stops.has(b.comp)) stops.set(b.comp, []);
+      stops.get(b.comp).push(b);
+    }
+    this.stops = [...stops.values()].filter((a) => a.length >= 2);
+    this.stopCount = this.stops.reduce((s, a) => s + a.length, 0);
     const outside = [];
     for (const o of w.outside) {
       const i = w.idx(o.x, o.y);
@@ -153,18 +163,19 @@ export class Traffic {
   dispatchFire(fromB, toB) {
     if (!fromB || !toB || fromB.access < 0 || toB.access < 0) return;
     const path = this.findPath(fromB.access, toB.access);
-    if (path) this.addVehicle(path, VEH_FIRE);
+    if (path) this.addVehicle(path, VEH_FIRE, { target: toB.id });
   }
 
-  addVehicle(path, type) {
+  addVehicle(path, type, extra = null) {
     const v = {
       path, i: 0, s: 0, type,
       color: Math.floor(this.rand() * 1000),
       laneSel: this.rand() < 0.5 ? 0 : 1,
-      base: type === VEH_FIRE ? 2.6 : type === VEH_TRUCK ? 1.25 : 1.55 + this.rand() * 0.35,
+      base: type === VEH_FIRE ? 2.6 : type === VEH_TRUCK || type === VEH_BUS ? 1.2 : 1.55 + this.rand() * 0.35,
       p0x: 0, p0z: 0, p1x: 0, p1z: 0, p2x: 0, p2z: 0, len: 1, turn: false,
-      x: 0, z: 0, yaw: 0, alive: true,
+      x: 0, z: 0, yaw: 0, alive: true, parked: false, target: -1,
     };
+    if (extra) Object.assign(v, extra);
     this.occ[path[0]] += 1;
     this.segment(v);
     this.pose(v);
@@ -228,7 +239,23 @@ export class Traffic {
     if (speedMult <= 0) return;
     const sdt = Math.min(dt, 0.1) * speedMult;
     const s = sim.stats;
-    const rate = Math.min(28, 0.3 + s.pop * 0.011 + s.jobs * 0.004);
+    const transitShare = s.pop > 0 ? Math.min(0.6, s.riders / s.pop) : 0;
+    const rate = Math.min(28, 0.3 + s.pop * 0.011 + s.jobs * 0.004) * (1 - transitShare * 0.7);
+    // Busse zwischen Haltestellen
+    if (this.stops && this.stops.length) {
+      this.busAcc = (this.busAcc || 0) + this.stopCount * 0.035 * sdt;
+      let buses = 0;
+      for (const v of this.vehicles) if (v.type === VEH_BUS) buses++;
+      while (this.busAcc >= 1) {
+        this.busAcc -= 1;
+        if (buses >= Math.min(40, this.stopCount * 2)) break;
+        const line = this.pickFrom(this.stops);
+        const a = this.pickFrom(line), b = this.pickFrom(line);
+        if (a === b) continue;
+        const path = this.findPath(a.access, b.access);
+        if (path) { this.addVehicle(path, VEH_BUS); buses++; }
+      }
+    }
     this.spawnAcc = Math.min(6, this.spawnAcc + rate * sdt);
     let budget = 6;
     while (this.spawnAcc >= 1 && budget-- > 0) {
@@ -239,6 +266,12 @@ export class Traffic {
     for (let k = 0; k < vs.length; k++) {
       const v = vs[k];
       if (!v.alive) continue;
+      if (v.parked) {
+        // Löschfahrzeug bleibt, bis das Feuer aus ist
+        const tb = w.buildings.get(v.target);
+        if (!tb || tb.fire <= 0) this.kill(v);
+        continue;
+      }
       let tile = v.path[v.i];
       const rt = road[tile];
       if (!rt) { this.kill(v); continue; }
@@ -251,7 +284,15 @@ export class Traffic {
         v.s -= 1;
         this.occ[tile] = Math.max(0, this.occ[tile] - 1);
         v.i++;
-        if (v.i >= v.path.length) { v.alive = false; break; }
+        if (v.i >= v.path.length) {
+          if (v.type === VEH_FIRE && v.target >= 0) {
+            v.i = v.path.length - 1; v.s = 0.92; v.parked = true;
+            this.occ[v.path[v.i]] += 1;
+            break;
+          }
+          v.alive = false;
+          break;
+        }
         tile = v.path[v.i];
         if (!road[tile]) { v.alive = false; break; }
         this.occ[tile] += 1;

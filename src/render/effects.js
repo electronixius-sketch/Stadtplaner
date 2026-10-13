@@ -181,11 +181,11 @@ export class Effects {
         }
         for (const b of this.burning || []) {
           const top = (b.hgt || 0.5) * 0.8;
-          for (let k = 0; k < 3; k++) {
+          for (let k = 0; k < 5; k++) {
             if (this.fparts.length < 300) {
               this.fparts.push({
-                x: b.x + 0.2 + Math.random() * (b.W - 0.4), y: top * Math.random(), z: b.y + 0.2 + Math.random() * (b.H - 0.4),
-                vy: 0.5 + Math.random() * 0.4, age: 0, life: 0.6 + Math.random() * 0.4, size: 0.07 + Math.random() * 0.06,
+                x: b.x + 0.2 + Math.random() * (b.W - 0.4), y: top * (0.35 + Math.random() * 0.75), z: b.y + 0.2 + Math.random() * (b.H - 0.4),
+                vy: 0.5 + Math.random() * 0.4, age: 0, life: 0.6 + Math.random() * 0.5, size: 0.11 + Math.random() * 0.1,
               });
             }
           }
@@ -243,7 +243,7 @@ export class Effects {
     this.flames.instanceMatrix.needsUpdate = true;
     this.flames.instanceColor.needsUpdate = true;
     // Symbole wippen lassen und mit Zoom skalieren
-    const sc2 = Math.min(0.95, Math.max(0.32, 0.22 + camDist * 0.0065));
+    const sc2 = Math.min(0.95, Math.max(0.22, 0.16 + camDist * 0.0065));
     for (let i = 0; i < (this.iconCount || 0); i++) {
       const s = this.spritePool[i];
       s.position.y = s.userData.base + Math.sin(time * 3 + s.userData.phase) * 0.06;

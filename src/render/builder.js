@@ -162,6 +162,16 @@ export class MeshBuilder {
     }
   }
 
+  // Ikosaeder-Krone (rundlicher Laubbaum)
+  ico(cx, cy, cz, r, h, col, col2 = col) {
+    const t = (1 + Math.sqrt(5)) / 2, l = Math.sqrt(1 + t * t);
+    const V = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1];
+    const I = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2,
+      3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
+    const p = (k) => [cx + (V[k * 3] / l) * r, cy + (V[k * 3 + 1] / l) * h, cz + (V[k * 3 + 2] / l) * r];
+    for (let f = 0; f < 20; f++) this.tri(p(I[f * 3]), p(I[f * 3 + 1]), p(I[f * 3 + 2]), f % 3 ? col : col2);
+  }
+
   tree(x, z, s, kind, c1, c2, trunk) {
     if (kind === 0) {
       this.box(x - 0.018 * s, 0, z - 0.018 * s, x + 0.018 * s, 0.12 * s, z + 0.018 * s, trunk, 0, null);

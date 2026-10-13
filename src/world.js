@@ -52,6 +52,7 @@ export class World {
     this.servicesDirty = true;
     this.networkVersion = 0;
     this.version = 0;
+    this.treesVersion = 0;
     this.rec = null;
     this.unique = {};
     generateMap(this, this.seed);
@@ -113,6 +114,7 @@ export class World {
       this.road[i] = v[0];
       this.zone[i] = v[1];
       this.trees[i] = v[2];
+      this.treesVersion++;
       const x = i % this.size, y = (i / this.size) | 0;
       this.markDirty(x, y);
       for (const d of DIRS) this.markDirty(x + d.dx, y + d.dy);
@@ -154,7 +156,7 @@ export class World {
     if (this.bld[i] >= 0) this.removeBuilding(this.bld[i]);
     this.road[i] = type;
     this.zone[i] = 0;
-    this.trees[i] = 0;
+    if (this.trees[i]) { this.trees[i] = 0; this.treesVersion++; }
     this.markDirty(x, y);
     for (const d of DIRS) this.markDirty(x + d.dx, y + d.dy);
     this.markZoneDirty(x, y);
@@ -200,7 +202,7 @@ export class World {
     if (this.trees[i] === c) return;
     this._touch(i);
     this.trees[i] = c;
-    this.markDirty(x, y);
+    this.treesVersion++;
   }
 
   // ---------- Gebäude ----------
@@ -212,7 +214,7 @@ export class World {
       for (let x = b.x; x < b.x + b.W; x++) {
         const i = this.idx(x, y);
         this._touch(i);
-        this.trees[i] = 0;
+        if (this.trees[i]) { this.trees[i] = 0; this.treesVersion++; }
         this.bld[i] = b.id;
         if (b.kind === 'service') this.zone[i] = 0;
         this.markZoneDirty(x, y);

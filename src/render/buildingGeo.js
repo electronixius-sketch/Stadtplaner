@@ -638,6 +638,36 @@ const SERVICE_GEN = {
     B.box(0.2, 0, 0.12, 1.2, 0.35, 0.45, C.white, WIN.STD, C.darkG);
     return 0.4;
   },
+  busstop(B, w, d) {
+    ground(B, w, d, C.paveL);
+    B.flat(0.05, 0.05, 0.95, 0.4, 0.016, C.pave);
+    B.box(0.2, 0.0, 0.32, 0.8, 0.24, 0.34, rgb(0x9ec5e8), 0);
+    B.box(0.18, 0.24, 0.12, 0.82, 0.26, 0.36, C.darkG, 0);
+    B.box(0.2, 0.0, 0.14, 0.22, 0.24, 0.34, C.metal, 0);
+    B.box(0.78, 0.0, 0.14, 0.8, 0.24, 0.34, C.metal, 0);
+    B.box(0.3, 0.05, 0.26, 0.7, 0.07, 0.31, C.wood, 0);
+    B.box(0.88, 0, 0.1, 0.9, 0.36, 0.12, C.metal, 0);
+    B.box(0.85, 0.3, 0.09, 0.93, 0.38, 0.13, rgb(0x2b8a3e), WIN.LAMP);
+    B.box(0.26, 0.1, 0.35, 0.44, 0.22, 0.36, rgb(0xf08c00), WIN.LAMP);
+    B.tree(0.15, 0.75, 0.8, 0, LEAF[1], LEAF2[1], C.trunk);
+    B.tree(0.75, 0.78, 0.7, 0, LEAF[3], LEAF2[2], C.trunk);
+    return 0.4;
+  },
+  busdepot(B, w, d) {
+    ground(B, w, d, C.asph);
+    const wall = rgb(0xd8dde2);
+    B.box(0.1, 0, 0.7, 1.9, 0.42, 1.9, wall, 0, null);
+    B.gable(0.08, 0.68, 1.92, 1.92, 0.42, 0.14, rgb(0x5c636a), false, wall);
+    for (let k = 0; k < 4; k++) B.box(0.18 + k * 0.43, 0, 0.688, 0.52 + k * 0.43, 0.3, 0.7, C.dark, 0, null);
+    B.box(0.1, 0.32, 0.69, 1.9, 0.37, 0.7, rgb(0xf2b705), 0, null);
+    for (let k = 0; k < 3; k++) {
+      const x = 0.4 + k * 0.6;
+      B.box(x - 0.07, 0.015, 0.12, x + 0.07, 0.15, 0.55, rgb(0xf2b705), 0);
+      B.box(x - 0.071, 0.08, 0.14, x + 0.071, 0.125, 0.53, C.glassD, 0, null);
+    }
+    B.box(1.5, 0, 0.05, 1.95, 0.3, 0.5, wall, WIN.STD, C.darkG);
+    return 0.6;
+  },
   landfill(B, w, d, rng) {
     ground(B, w, d, C.dirt);
     const trash = P([0x7a6a4f, 0x5b6e4a, 0x8a7a64, 0x6f5f4a, 0x9e8f75]);
@@ -906,16 +936,6 @@ export function addBuilding(B, b) {
   B.winOff = false;
   B.identity();
   return h;
-}
-
-export function addTreesTile(B, x, y, count, seed) {
-  for (let k = 0; k < count; k++) {
-    const r = mulberry32((x * 73856093) ^ (y * 19349663) ^ (k * 83492791) ^ seed);
-    const tx = x + 0.18 + r() * 0.64, tz = y + 0.18 + r() * 0.64;
-    const s = 0.75 + r() * 0.6;
-    if (r() < 0.38) B.tree(tx, tz, s * 1.1, 1, pick(r, CONIFER), pick(r, CONIFER2), C.trunk);
-    else B.tree(tx, tz, s, 0, pick(r, LEAF), pick(r, LEAF2), C.trunk);
-  }
 }
 
 export { C as COLORS, CARS, LEAF, LEAF2, CONIFER, CONIFER2 };

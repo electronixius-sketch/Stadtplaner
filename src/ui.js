@@ -12,6 +12,7 @@ const CATEGORIES = [
   { id: 'zones', icon: '🏘️', name: 'Zonen', items: [1, 2, 3, 4, 5, 6, 0].map((z) => ({ kind: 'zone', zone: z })) },
   { id: 'power', icon: '⚡', name: 'Strom', items: ['wind', 'coal', 'solar'].map((d) => ({ kind: 'service', def: d })) },
   { id: 'water', icon: '💧', name: 'Wasser', items: ['pump', 'outlet', 'tower', 'treatment'].map((d) => ({ kind: 'service', def: d })) },
+  { id: 'transit', icon: '🚌', name: 'Nahverkehr', items: ['busstop', 'busdepot'].map((d) => ({ kind: 'service', def: d })) },
   { id: 'services', icon: '🏛️', name: 'Dienste', items: ['police', 'fire', 'clinic', 'school', 'landfill', 'highschool', 'incinerator', 'hospital', 'policehq', 'university'].map((d) => ({ kind: 'service', def: d })) },
   { id: 'parks', icon: '🌳', name: 'Parks', items: [{ kind: 'tree' }, ...['park', 'playground', 'plaza', 'citypark', 'cityhall', 'stadium', 'tvtower'].map((d) => ({ kind: 'service', def: d }))] },
 ];
@@ -113,6 +114,7 @@ export class UI {
     this.cat = id;
     for (const b of document.querySelectorAll('#toolbar .cat')) b.classList.toggle('open', b.dataset.cat === id);
     const sp = $('subpanel');
+    document.body.classList.toggle('sub-open', !!id);
     if (!id) { sp.classList.remove('show'); return; }
     this.renderSubpanel();
     sp.classList.add('show');
@@ -395,6 +397,7 @@ export class UI {
       body += chip(cov.health[ci] > 0.05, '🩺', `Gesundheit ${pct(cov.health[ci])}`);
       if (isR) body += chip(b.edu > 0.1, '🎓', `Bildung ${pct(b.edu)}`);
       body += chip(cov.parks[ci] > 0.05, '🌳', `Parks ${pct(cov.parks[ci])}`);
+      body += chip(cov.transit[ci] > 0.05, '🚌', `ÖPNV ${pct(cov.transit[ci])}`);
       body += '</div>';
       body += `<div class="kv"><span>Verschmutzung</span><b>${Math.round(sim.pollution[ci])}</b></div>`;
       body += `<div class="kv"><span>Lärm</span><b>${Math.round(sim.noise[ci])}</b></div>`;
@@ -467,7 +470,7 @@ export class UI {
     $('legendHigh').textContent = v.high;
     const grad = { pollution: 'linear-gradient(90deg,#37b24d,#965f1e)', noise: 'linear-gradient(90deg,#444,#9646c8)',
       traffic: 'linear-gradient(90deg,#37b24d,#fab005,#e03131)', crime: 'linear-gradient(90deg,#37b24d,#fab005,#e03131)' }[k]
-      || (['police', 'fire', 'health', 'garbage', 'parks'].includes(k) ? 'linear-gradient(90deg,#e03131,#fab005,#37b24d)' : 'linear-gradient(90deg,#e03131,#fab005,#37b24d)');
+      || (['police', 'fire', 'health', 'garbage', 'parks', 'transit'].includes(k) ? 'linear-gradient(90deg,#e03131,#fab005,#37b24d)' : 'linear-gradient(90deg,#e03131,#fab005,#37b24d)');
     $('legendBar').style.background = grad;
     lg.classList.add('show');
     $('btnViews').classList.add('active');
@@ -642,6 +645,7 @@ export class UI {
           <div class="col">
             <h3>Steuern & Einnahmen <small>${sim.lastMonth ? 'letzter Monat' : 'laufender Monat'}</small></h3>
             ${taxRow('R', 'Wohnen', 'r')}${taxRow('C', 'Gewerbe', 'c')}${taxRow('I', 'Industrie', 'i')}${taxRow('O', 'Büros', 'o')}
+            <div class="kv"><span>🎫 Fahrkarten</span><b>${fmtMoney(L.income.T || 0)}</b></div>
             <p class="tip">Über 12 % sinkt die Nachfrage spürbar, unter 7 % steigt sie – kostet aber Einnahmen.</p>
           </div>
           <div class="col">
@@ -666,6 +670,7 @@ export class UI {
             <div class="kv"><span>Erwerbspersonen</span><b>${fmt(s.workforce)}</b></div>
             <div class="kv"><span>Arbeitslosigkeit</span><b class="${s.unemployment > 0.12 ? 'neg' : ''}">${Math.round(s.unemployment * 100)} %</b></div>
             <div class="kv"><span>Pendler von außerhalb</span><b>${fmt(s.commuters)}</b></div>
+            <div class="kv"><span>Fahrgäste ÖPNV</span><b>${fmt(s.riders)}</b></div>
             <div class="kv"><span>Arbeitsplätze (Gew./Ind./Büro/Öff.)</span><b>${fmt(s.jobsC)} / ${fmt(s.jobsI)} / ${fmt(s.jobsO)} / ${fmt(s.jobsS)}</b></div>
             <div class="kv"><span>Ø Bildung</span><b>${Math.round(s.eduAvg * 100)} %</b></div>
             <div class="kv"><span>Gebäude</span><b>${fmt(s.buildings)}</b></div>
