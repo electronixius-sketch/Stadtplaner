@@ -1,5 +1,5 @@
 // Renderer, Kamera, Licht, Himmel, Sterne und Tag/Nacht-Zyklus.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { uniforms } from './materials.js';
 import { clamp, smoothstep, lerp } from '../util.js';
 

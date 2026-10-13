@@ -335,6 +335,9 @@ canvas#chartMoney, canvas#chartPop { width: 100%; height: 140px; border-radius: 
 @keyframes spin { to { transform: rotate(360deg); } }
 .err { text-align: center; color: var(--text); font-size: 18px; padding: 20px; }
 
+body.start-mode #topbar, body.start-mode #toolbar, body.start-mode #side, body.start-mode #tasks,
+body.start-mode #feed, body.start-mode #subpanel, body.start-mode #hint { display: none; }
+
 /* ---------- Kleinere Bildschirme / Hochformat ---------- */
 @media (max-width: 1180px) {
   .city { flex-basis: 140px; }

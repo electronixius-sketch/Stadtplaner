@@ -1,5 +1,5 @@
 // Stadtplaner – Einstiegspunkt. Verbindet Simulation, Rendering, Eingabe und Oberfläche.
-import * as THREE from 'three';
+import * as THREE from '../vendor/three.module.min.js';
 import { MAP_SIZE, DAY_SECONDS, CLOCK_SPEED, TRAFFIC_SPEED, SERVICES } from './config.js';
 import { World } from './world.js';
 import { Simulation } from './sim.js';
@@ -122,6 +122,7 @@ class Game {
     this.ui.closeInfo();
     this.ui.setView(null);
     this.started = true;
+    document.body.classList.remove('start-mode');
     this.speed = 1;
     this.clock = 8.5;
     const st = world.start;
@@ -147,6 +148,7 @@ class Game {
     this.ui.setView(null);
     this.ui.lastMilestone = -1;
     this.started = true;
+    document.body.classList.remove('start-mode');
     this.speed = 1;
     if (typeof res.clock === 'number') this.clock = res.clock;
     if (res.camera) this.camera.fromJSON(res.camera);

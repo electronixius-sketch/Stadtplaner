@@ -1,6 +1,6 @@
 // Chunk-Verwaltung: Straßen, Bäume und Gebäude werden pro 16x16-Chunk zu einem Mesh zusammengefasst
 // und nur bei Änderungen neu erzeugt. Zonenfelder liegen als transparente Overlay-Meshes darüber.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
 import { addBuilding } from './buildingGeo.js';
 import { addRoadTile } from './roadGeo.js';

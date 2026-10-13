@@ -1,5 +1,5 @@
 // Bäume als InstancedMesh: Wälder auf der Karte (veränderlich) und im Umland (statisch).
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
 import { mulberry32, pick } from '../util.js';
 import { LEAF, LEAF2, CONIFER } from './buildingGeo.js';

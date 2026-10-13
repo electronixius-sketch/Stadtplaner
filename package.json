@@ -1,0 +1,12 @@
+{
+  "name": "stadtplaner",
+  "version": "1.0.0",
+  "description": "3D-Städtebauspiel für Tablets, inspiriert von Cities: Skylines",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -c-1 -p 8080 .",
+    "test": "node tests/sim-smoke.mjs 12345 1500"
+  },
+  "license": "MIT"
+}

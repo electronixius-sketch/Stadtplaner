@@ -1,6 +1,6 @@
 // MeshBuilder: sammelt Low-Poly-Geometrie (Position, Normale, Farbe, Fenstercode) in einem lokalen
 // Grundstücks-Koordinatensystem und erzeugt daraus eine BufferGeometry.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 
 export class MeshBuilder {
   constructor() {

@@ -1,5 +1,5 @@
 // Orbit-Kamera mit "Boden greifen"-Steuerung für Touch und Maus.
-import * as THREE from 'three';
+import * as THREE from '../vendor/three.module.min.js';
 import { clamp } from './util.js';
 
 const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3();

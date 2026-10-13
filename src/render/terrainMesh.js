@@ -1,5 +1,5 @@
 // Geländemesh (inkl. Umland), Wasseroberfläche, Autobahn außerhalb der Karte und Umlandwälder.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { makeNoise } from '../noise.js';
 import { rgb, mixc, scalec, clamp, smoothstep } from '../util.js';
 import { T_WATER, T_ROCK, WATER_LEVEL } from '../config.js';

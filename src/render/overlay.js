@@ -1,5 +1,5 @@
 // Info-Ansichten: färbt Gelände, Straßen und Gebäude über eine Datentextur ein.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MAP_SIZE, T_LAND, SERVICES, ZONES } from '../config.js';
 import { uniforms } from './materials.js';
 

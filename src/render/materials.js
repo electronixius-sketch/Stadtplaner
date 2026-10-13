@@ -1,6 +1,6 @@
 // Gemeinsame Materialien. Das Weltmaterial erweitert MeshLambertMaterial um
 // prozedurale Fenster (tags Glas, nachts beleuchtet), Lampen-Leuchten und Info-Ansichten.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MAP_SIZE } from '../config.js';
 
 export const uniforms = {

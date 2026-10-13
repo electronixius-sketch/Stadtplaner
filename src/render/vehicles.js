@@ -1,5 +1,5 @@
 // Fahrzeug-Darstellung per InstancedMesh (Autos, Lkw, Feuerwehr).
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
 import { rgb } from '../util.js';
 import { VEH_TRUCK, VEH_FIRE, VEH_BUS } from '../traffic.js';

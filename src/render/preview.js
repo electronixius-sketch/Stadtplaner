@@ -1,5 +1,5 @@
 // Vorschau-Darstellung für Werkzeuge: Feldmarkierungen, Geister-Gebäude und Wirkungsradius.
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
 import { addBuilding } from './buildingGeo.js';
 import { makeBuilding } from '../world.js';

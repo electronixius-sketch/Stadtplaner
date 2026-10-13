@@ -347,7 +347,7 @@ export class UI {
       <button class="x" id="infoClose">✕</button></div>
       <div class="info-body">
         ${this.bar('Verkehrsauslastung', clamp(dens, 0, 1) * 100, dens > 0.8 ? 'bad' : dens > 0.5 ? 'mid' : 'good', `${Math.round(clamp(dens, 0, 1.5) * 100)} %`)}
-        <div class="kv"><span>Höchstgeschwindigkeit</span><b>${Math.round(30 * t.speed)} km/h</b></div>
+        <div class="kv"><span>Höchstgeschwindigkeit</span><b>${t.kmh} km/h</b></div>
         <div class="kv"><span>Unterhalt</span><b>${fmtMoney(t.upkeep)}/Monat</b></div>
         <p class="tip">Tipp: Mit Alleen (ab ${fmt(MILESTONES[2].pop)} Einw.) erhöhst du die Kapazität stark befahrener Straßen.</p>
       </div>`;
@@ -490,6 +490,7 @@ export class UI {
   closeModal() {
     $('modal').classList.remove('show');
     this.modalKind = null;
+    document.body.classList.toggle('start-mode', !this.g.started);
   }
 
   showMenu() {
@@ -519,6 +520,7 @@ export class UI {
   showStart(fromMenu = false) {
     const info = saveInfo();
     const name = CITY_NAMES[Math.floor(Math.random() * CITY_NAMES.length)];
+    document.body.classList.add('start-mode');
     const m = this.openModal(`
       <div class="start">
         <div class="logo">🏙️</div>
