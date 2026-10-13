@@ -2,7 +2,7 @@
 
 export const MAP_SIZE = 128;        // Kartengröße in Feldern
 export const CHUNK_SIZE = 16;       // Feldgröße eines Render-Chunks
-export const ZONE_DEPTH = 3;        // Wie tief Zonen neben Straßen ausgewiesen werden können
+export const ZONE_DEPTH = 4;        // Wie viele Zonenzellen hintereinander neben einer Straße entstehen
 export const EXT_PAD = 40;          // Dekoratives Umland um die Karte
 export const WATER_LEVEL = -0.12;
 export const START_MONEY = 70000;
@@ -29,11 +29,11 @@ export const T_WATER = 1;
 export const T_ROCK = 2;
 
 export const ROAD_TYPES = {
-  1: { id: 1, key: 'street', name: 'Straße', icon: '🛣️', cost: 12, upkeep: 1.2, speed: 1.0, kmh: 50, capacity: 6, zoneable: true, unlock: 0,
+  1: { id: 1, key: 'street', name: 'Straße', icon: '🛣️', cost: 12, upkeep: 1.2, speed: 1.0, kmh: 50, capacity: 6, width: 1.0, sidewalk: 0.15, zoneable: true, unlock: 0,
        desc: 'Zweispurige Stadtstraße. Zonen können angrenzen.' },
-  2: { id: 2, key: 'avenue', name: 'Allee', icon: '🌳', cost: 30, upkeep: 2.6, speed: 1.35, kmh: 60, capacity: 14, zoneable: true, unlock: 2,
+  2: { id: 2, key: 'avenue', name: 'Allee', icon: '🌳', cost: 30, upkeep: 2.6, speed: 1.35, kmh: 60, capacity: 14, width: 1.5, sidewalk: 0.12, zoneable: true, unlock: 2,
        desc: 'Vierspurig mit Grünstreifen – mehr Kapazität.' },
-  3: { id: 3, key: 'highway', name: 'Autobahn', icon: '🛤️', cost: 70, upkeep: 5, speed: 2.1, kmh: 100, capacity: 26, zoneable: false, unlock: 4,
+  3: { id: 3, key: 'highway', name: 'Autobahn', icon: '🛤️', cost: 70, upkeep: 5, speed: 2.1, kmh: 100, capacity: 26, width: 1.6, sidewalk: 0, zoneable: false, unlock: 4,
        desc: 'Schnell und leistungsstark. Keine Zonen und keine Zufahrten.' },
 };
 export const BRIDGE_MULT = 4;

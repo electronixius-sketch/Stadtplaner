@@ -155,13 +155,9 @@ export function generateMap(world, seed) {
     for (const j of nb) if (j >= 0 && world.waterDist[j] > d) { world.waterDist[j] = d; q[tail++] = j; }
   }
 
-  // Autobahn vom Kartenrand
-  for (let x = 0; x <= HIGHWAY_LEN; x++) {
-    const i = hwY * S + x;
-    world.road[i] = 3;
-    world.trees[i] = 0;
-  }
-  world.outside = [{ x: 0, y: hwY, dir: 3 }];
+  // Autobahn vom Kartenrand (wird von der Welt als Straßensegment angelegt)
+  for (let x = 0; x <= HIGHWAY_LEN + 1; x++) world.trees[hwY * S + x] = 0;
+  world.highway = { x0: 0, x1: HIGHWAY_LEN + 0.5, z: hwY + 0.5 };
   world.start = { x: HIGHWAY_LEN + 5, y: hwY };
   world.ext = { P, ES, CS, types, ch, outTrees, hwY };
 }

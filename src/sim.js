@@ -1,9 +1,10 @@
 // Stadtsimulation: Versorgung, Dienste, Umwelt, Bevölkerung, Nachfrage, Wachstum, Brände und Finanzen.
 import {
-  ZONES, SERVICES, CAPACITY, LOTS, DIRS, UTIL_USE, TAX_YIELD, MILESTONES, COVERAGE_TYPES, START_MONEY,
+  ZONES, SERVICES, CAPACITY, ZONE_DEPTH, LOTS, UTIL_USE, TAX_YIELD, MILESTONES, COVERAGE_TYPES, START_MONEY,
   START_YEAR, ROAD_TYPES, T_LAND,
 } from './config.js';
 import { mulberry32, clamp, hash2, weightedPick, shuffle } from './util.js';
+import { rectsOverlap, wrapAngle } from './geom.js';
 import { makeBuilding } from './world.js';
 import { buildingName, chirpText, handle } from './names.js';
 
@@ -137,7 +138,7 @@ export class Simulation {
       }
       if (b.kind === 'service' && !SERVICES[b.def].powerUse) b.power = true;
       if (b.kind === 'service' && b.power !== prevPower) this.covDirty = true;
-      if (prevPower !== b.power) w.markDirty(b.x, b.y);
+      if (prevPower !== b.power) w.markDirty(b.cx, b.cz);
     }
   }
 
@@ -159,7 +160,7 @@ export class Simulation {
       if (b.def === 'busstop' && !this.depotComps.has(b.comp)) continue;
       const arr = this.cov[def.cover.type];
       const r = def.cover.r, s = def.cover.s ?? 1;
-      const cx = b.x + b.W / 2, cy = b.y + b.H / 2;
+      const cx = b.cx, cy = b.cz;
       if (b.def === 'fire') this.fireStations.push(b);
       const additive = def.cover.type === 'parks';
       const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(S - 1, Math.ceil(cy + r));
@@ -204,7 +205,7 @@ export class Simulation {
     }
     const pol0 = this.cov.police;
     for (const b of w.buildings.values()) {
-      const cx = b.x + b.W / 2, cy = b.y + b.H / 2, area = b.W * b.H;
+      const cx = b.cx, cy = b.cz, area = b.w * b.d;
       if (b.kind === 'service') {
         const def = SERVICES[b.def];
         if (def.pollution) radial(pol, cx, cy, def.pollution.s, def.pollution.r);
@@ -221,10 +222,9 @@ export class Simulation {
       }
       if (key === 'R' || key === 'C' || key === 'O' || b.abandoned) {
         const density = b.occ / area;
-        const ci = w.idx(Math.floor(cx), Math.floor(cy));
-        let c = 14 + density * 0.9 + (b.abandoned ? 35 : 0) - pol0[ci] * 50;
+        let c = 14 + density * 0.9 + (b.abandoned ? 35 : 0) - pol0[b.ti] * 50;
         c = clamp(c, 0, 100);
-        for (let y = b.y; y < b.y + b.H; y++) for (let x = b.x; x < b.x + b.W; x++) crime[y * S + x] = c;
+        for (const i of b.tiles) crime[i] = c;
       }
     }
     let lvSum = 0, lvN = 0, polSum = 0, polN = 0, crimeSum = 0, crimeN = 0;
@@ -265,7 +265,6 @@ export class Simulation {
     const w = this.w, cv = this.cov;
     let hs = 0, hn = 0, eduS = 0;
     const pop = this.stats.pop;
-    const dens = this.traffic ? this.traffic.density : null;
     const toRemove = [];
     for (const b of w.buildings.values()) {
       if (b.kind === 'service') continue;
@@ -274,7 +273,7 @@ export class Simulation {
         if (b.connected) {
           const before = Math.floor(b.built * 3);
           b.built = Math.min(1, b.built + 0.2 + this.rng() * 0.12);
-          if (Math.floor(b.built * 3) !== before || b.built >= 1) w.markDirty(b.x, b.y);
+          if (Math.floor(b.built * 3) !== before || b.built >= 1) w.markDirty(b.cx, b.cz);
         }
         continue;
       }
@@ -283,7 +282,7 @@ export class Simulation {
         if (b.abandonedDays > 50) toRemove.push(b.id);
         continue;
       }
-      const ci = w.idx(b.x + (b.W >> 1), b.y + (b.H >> 1));
+      const ci = b.ti;
       const key = ZONES[b.zone].key;
       const eduTarget = clamp(cv.edu1[ci] * 0.45 + cv.edu2[ci] * 0.35 + cv.edu3[ci] * 0.3, 0, 1);
       b.edu += (eduTarget - b.edu) * 0.04;
@@ -305,7 +304,8 @@ export class Simulation {
       if (key !== 'R' && b.cap > 0 && b.occ < b.cap * 0.4) h -= 10;
       if (!b.connected) h -= 25;
       if (this.cityHall) h += 5;
-      if (dens && b.access >= 0 && dens[b.access] > 0.9) h -= 6;
+      const seg = b.seg >= 0 ? w.net.segs.get(b.seg) : null;
+      if (seg && seg.density > 0.9) h -= 6;
       h = clamp(h, 0, 100);
       b.happy += (h - b.happy) * 0.15;
       if ((b.happy < 16 || !b.connected) && b.age > 30) b.unhappyDays += b.connected ? 1 : 2;
@@ -314,7 +314,7 @@ export class Simulation {
         b.abandoned = true;
         b.occ = 0;
         b.abandonedDays = 0;
-        w.markDirty(b.x, b.y);
+        w.markDirty(b.cx, b.cz);
         this.chirp('abandoned', {}, 40);
         continue;
       }
@@ -339,9 +339,9 @@ export class Simulation {
     else score = lv * 0.4 + b.edu * 45 + b.happy * 0.2;
     if (score >= LEVEL_SCORE[b.level] && b.happy >= 45 && b.power && b.water) {
       b.level++;
-      b.cap = CAPACITY[b.zone][b.level - 1] * b.W * b.H;
+      b.cap = CAPACITY[b.zone][b.level - 1] * b.w * b.d;
       b.built = 0.55;
-      this.w.markDirty(b.x, b.y);
+      this.w.markDirty(b.cx, b.cz);
       this.emit({ type: 'levelup', id: b.id });
       if (b.level >= 3) this.chirp('levelup', {}, 90);
     }
@@ -374,14 +374,14 @@ export class Simulation {
         if (b.occ > b.cap) b.occ = b.cap;
         pop += b.occ;
         eduPop += b.occ * b.edu;
-        riders += b.occ * this.cov.transit[w.idx(b.x + (b.W >> 1), b.y + (b.H >> 1))] * 0.4;
+        riders += b.occ * this.cov.transit[b.ti] * 0.4;
       } else if (active) {
         if (key === 'C') jC += b.cap; else if (key === 'I') jI += b.cap; else jO += b.cap;
       }
     }
     const workforce = pop * 0.55;
     const jobs = jC + jI + jO + jS;
-    const connected = w.compOutside.some(Boolean);
+    const connected = w.net.compOutside.some(Boolean);
     const commuters = connected ? Math.min(jobs * 0.25, 20 + pop * 0.12) : 0;
     const fill = jobs > 0 ? Math.min(1, (workforce + commuters) / jobs) : 0;
     for (const b of w.buildings.values()) {
@@ -419,27 +419,19 @@ export class Simulation {
     d.O += (clamp(dO, -100, 100) - d.O) * 0.25;
   }
 
-  // ---------- Wachstum: neue Gebäude auf Zonen ----------
+  // ---------- Wachstum: neue Gebäude auf Zonenzellen ----------
   grow() {
-    const w = this.w, S = w.size, rng = this.rng;
-    if (!w.compOutside.some(Boolean)) return;
+    const w = this.w, rng = this.rng, net = w.net;
+    if (!net.compOutside.some(Boolean)) return;
     let constructing = 0;
     for (const b of w.buildings.values()) if (b.kind === 'zone' && b.built < 1 && b.level === 1) constructing++;
     const maxC = 6 + Math.floor(this.stats.pop / 350);
     if (constructing >= maxC) return;
     const cands = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-    for (let i = 0; i < w.n; i++) {
-      const z = w.zone[i];
-      if (!z || w.bld[i] >= 0 || w.road[i]) continue;
-      const x = i % S, y = (i / S) | 0;
-      const start = (i * 7) & 3;
-      for (let k = 0; k < 4; k++) {
-        const d = (start + k) & 3;
-        const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
-        if (nx < 0 || ny < 0 || nx >= S || ny >= S) continue;
-        const j = ny * S + nx, r = w.road[j];
-        if (r && r !== 3 && w.compOutside[w.comp[j]]) { cands[z].push(i, d); break; }
-      }
+    for (const c of w.cells) {
+      if (c.row !== 1 || !c.zone || c.bld >= 0) continue;
+      const s = net.segs.get(c.seg);
+      if (s && net.compOutside[s.comp]) cands[c.zone].push(c);
     }
     for (let z = 1; z <= 6; z++) {
       const zdef = ZONES[z];
@@ -450,19 +442,17 @@ export class Simulation {
       let tries = dem > 70 ? 3 : dem > 35 ? 2 : 1;
       if (rng() > 0.4 + dem / 140) continue;
       while (tries-- > 0 && list.length && constructing < maxC) {
-        const k = Math.floor(rng() * (list.length / 2)) * 2;
-        const i = list[k], d = list[k + 1];
-        list.splice(k, 2);
-        if (this.placeLot(z, i % S, (i / S) | 0, d)) constructing++;
+        const k = Math.floor(rng() * list.length);
+        const c = list[k];
+        list.splice(k, 1);
+        if (c.bld < 0 && this.placeLot(z, c)) constructing++;
       }
     }
   }
 
-  placeLot(z, tx, ty, d) {
+  // Grundstück aus benachbarten Zellen bilden; das Gebäude richtet sich nach der Straße aus
+  placeLot(z, c0) {
     const w = this.w, rng = this.rng;
-    const f = DIRS[d];
-    const Dx = -f.dx, Dy = -f.dy;
-    const Lx = Dy, Ly = -Dx;
     const opts = LOTS[z].slice();
     const ordered = [];
     while (opts.length) {
@@ -470,32 +460,67 @@ export class Simulation {
       ordered.push(o);
       opts.splice(opts.indexOf(o), 1);
     }
-    for (const [lw, ld] of ordered) {
+    for (const [lw, ld0] of ordered) {
       const offs = shuffle(rng, Array.from({ length: lw }, (_, k) => -k));
       for (const o of offs) {
-        let ok = true, minX = 1e9, minY = 1e9, maxX = -1, maxY = -1;
+        let ld = ld0;
+        const front = [];
+        let ok = true;
         for (let a = 0; a < lw && ok; a++) {
-          for (let bb = 0; bb < ld; bb++) {
-            const x = tx + Lx * (o + a) + Dx * bb, y = ty + Ly * (o + a) + Dy * bb;
-            if (!w.inb(x, y)) { ok = false; break; }
-            const j = w.idx(x, y);
-            if (w.zone[j] !== z || w.bld[j] >= 0 || w.road[j] || w.terrain[j] !== T_LAND) { ok = false; break; }
-            if (x < minX) minX = x; if (y < minY) minY = y;
-            if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+          for (let r = 1; r <= ld; r++) {
+            const c = w.cellAt(c0.seg, c0.side, c0.col + o + a, r);
+            if (!c || c.zone !== z || c.bld >= 0) { ok = false; break; }
+            if (r === 1) front.push(c);
           }
         }
         if (!ok) continue;
+        // Wie in Cities: Skylines füllt das Grundstück die freie Zonentiefe dahinter auf
+        let dd = ld;
+        while (dd < ZONE_DEPTH) {
+          let all = true;
+          for (let a = 0; a < lw && all; a++) {
+            const c = w.cellAt(c0.seg, c0.side, c0.col + o + a, dd + 1);
+            if (!c || c.zone !== z || c.bld >= 0) all = false;
+          }
+          if (!all) break;
+          dd++;
+        }
+        ld = dd;
+        let sx = 0, sz = 0, px = 0, pz = 0;
+        for (const c of front) { sx += Math.cos(c.rot); sz += Math.sin(c.rot); px += c.cx; pz += c.cz; }
+        const rot = Math.atan2(sz, sx);
+        if (front.some((c) => Math.abs(wrapAngle(c.rot - rot)) > 0.35)) continue;
+        px /= front.length; pz /= front.length;
+        const dx = -Math.sin(rot), dz = Math.cos(rot);
+        const rect = { cx: px + dx * (ld - 1) / 2, cz: pz + dz * (ld - 1) / 2, rot, w: lw, d: ld };
+        if (this.lotBlocked(rect)) continue;
         const b = makeBuilding({
-          kind: 'zone', zone: z, x: minX, y: minY, W: maxX - minX + 1, H: maxY - minY + 1, dir: d, lw, ld,
+          kind: 'zone', zone: z, cx: rect.cx, cz: rect.cz, rot, w: lw, d: ld,
           seed: (rng() * 2147483647) | 0, built: 0, happy: 62,
         });
-        b.cap = CAPACITY[z][0] * b.W * b.H;
+        b.cap = CAPACITY[z][0] * lw * ld;
         b.name = buildingName(b, rng);
         w.addBuilding(b);
         return b;
       }
     }
     return null;
+  }
+
+  lotBlocked(rect) {
+    const w = this.w;
+    const tx = Math.floor(rect.cx), tz = Math.floor(rect.cz);
+    const R = Math.ceil(Math.max(rect.w, rect.d) / 2) + 2;
+    const seen = new Set();
+    for (let dz = -R; dz <= R; dz++) {
+      for (let dx = -R; dx <= R; dx++) {
+        const o = w.getBuilding(tx + dx, tz + dz);
+        if (!o || seen.has(o.id)) continue;
+        seen.add(o.id);
+        if (rectsOverlap(rect, w.rectOf(o), 0.92)) return true;
+      }
+    }
+    return !!w.rectHitsRoad(rect, -0.1);
   }
 
   // ---------- Brände ----------
@@ -507,8 +532,7 @@ export class Simulation {
       if (b.fire > 0) { burning.push(b); continue; }
       if (b.built < 1) continue;
       if (b.kind === 'service' && SERVICES[b.def].cat === 'parks') continue;
-      const ci = w.idx(b.x + (b.W >> 1), b.y + (b.H >> 1));
-      const fc = this.cov.fire[ci];
+      const fc = this.cov.fire[b.ti];
       const isI = b.kind === 'zone' && ZONES[b.zone].key === 'I';
       const p = 0.00004 * (1 - fc) * (1 - fc) * (isI ? 2.5 : 1) * (b.abandoned ? 3 : 1);
       if (rng() < p) this.ignite(b, fc);
@@ -518,8 +542,7 @@ export class Simulation {
       if (!b.fireCovered && rng() < 0.07) {
         const nb = this.neighborBuilding(b);
         if (nb && nb.fire <= 0 && nb.built >= 1) {
-          const ci = w.idx(nb.x, nb.y);
-          this.ignite(nb, this.cov.fire[ci]);
+          this.ignite(nb, this.cov.fire[nb.ti]);
         }
       }
       if (b.fire <= 0) {
@@ -527,10 +550,10 @@ export class Simulation {
         if (b.fireCovered) {
           b.happy = Math.max(0, b.happy - 8);
           this.chirp('fireOut', {}, 20);
-          w.markDirty(b.x, b.y);
+          w.markDirty(b.cx, b.cz);
         } else {
           this.chirp('burned', { where: b.name || 'ein Gebäude' }, 5);
-          this.emit({ type: 'burned', x: b.x + b.W / 2, y: b.y + b.H / 2 });
+          this.emit({ type: 'burned', x: b.cx, y: b.cz });
           w.removeBuilding(b.id);
         }
       }
@@ -540,13 +563,13 @@ export class Simulation {
   ignite(b, fc) {
     b.fireCovered = fc > 0.15;
     b.fire = b.fireCovered ? 2 + this.rng() * 3 : 9 + this.rng() * 4;
-    this.w.markDirty(b.x, b.y);
+    this.w.markDirty(b.cx, b.cz);
     this.chirp('fire', { where: b.name || 'der Stadt' }, 6);
     this.emit({ type: 'fire', id: b.id });
     if (b.fireCovered && this.fireStations.length) {
       let best = null, bd = 1e9;
       for (const s of this.fireStations) {
-        const d = Math.abs(s.x - b.x) + Math.abs(s.y - b.y);
+        const d = Math.hypot(s.cx - b.cx, s.cz - b.cz);
         if (d < bd) { bd = d; best = s; }
       }
       if (best) this.dispatch.push({ from: best.id, to: b.id });
@@ -556,9 +579,8 @@ export class Simulation {
   neighborBuilding(b) {
     const w = this.w;
     for (let k = 0; k < 6; k++) {
-      const x = b.x - 1 + Math.floor(this.rng() * (b.W + 2));
-      const y = b.y - 1 + Math.floor(this.rng() * (b.H + 2));
-      const nb = w.getBuilding(x, y);
+      const ang = this.rng() * Math.PI * 2, rr = Math.max(b.w, b.d) / 2 + 0.6;
+      const nb = w.buildingAt(b.cx + Math.cos(ang) * rr, b.cz + Math.sin(ang) * rr, 0.3);
       if (nb && nb !== b) return nb;
     }
     return null;
@@ -586,8 +608,8 @@ export class Simulation {
     L.income.T += tickets;
     inc += tickets;
     let roads = 0;
-    for (const k of [1, 2, 3]) roads += w.roadCount[k] * ROAD_TYPES[k].upkeep;
-    roads += w.roadCount.bridge * 3;
+    for (const k of [1, 2, 3]) roads += w.roadLen[k] * ROAD_TYPES[k].upkeep;
+    roads += w.roadLen.bridge * 3;
     roads /= 30;
     L.expense.roads += roads;
     exp += roads;
@@ -637,8 +659,9 @@ export class Simulation {
     flag('water', s.waterDem > 0.3 && s.waterSup < s.waterDem, s.waterSup >= s.waterDem * 1.02, 'water');
     flag('sewage', s.sewDem > 0.3 && s.sewSup < s.sewDem, s.sewSup >= s.sewDem * 1.02, 'sewage');
     let zoned = false;
-    for (let i = 0; i < this.w.n; i += 3) if (this.w.zone[i]) { zoned = true; break; }
-    flag('conn', zoned && !this.w.compOutside.some(Boolean), this.w.compOutside.some(Boolean), 'conn');
+    for (const c of this.w.cells) if (c.zone) { zoned = true; break; }
+    const conn = this.w.net.compOutside.some(Boolean);
+    flag('conn', zoned && !conn, conn, 'conn');
     flag('broke', this.money < 0, this.money > 1000, 'broke');
     if (s.pop > 300 && s.unemployment > 0.18) this.chirp('unemployment', {}, 60);
     if (Math.max(this.taxes.R, this.taxes.C, this.taxes.I, this.taxes.O) > 14) this.chirp('taxes', {}, 50);
