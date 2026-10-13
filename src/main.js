@@ -13,6 +13,7 @@ import { Effects } from './render/effects.js';
 import { Overlay } from './render/overlay.js';
 import { Preview } from './render/preview.js';
 import { TreeLayer } from './render/trees.js';
+import { Life } from './render/life.js';
 import { CameraController } from './camera.js';
 import { Input } from './input.js';
 import { createTool } from './tools.js';
@@ -49,6 +50,7 @@ class Game {
     this.effects = new Effects(this.scene, this.mats);
     this.vehicles = new VehicleRenderer(this.scene, this.mats, 600);
     this.trees = new TreeLayer(this.scene, this.mats);
+    this.life = new Life(this.scene, this.mats);
     this.speed = 1;
     this.prevSpeed = 1;
     this.clock = 8.5;
@@ -99,6 +101,7 @@ class Game {
     this.trees.setWorld(world);
     this.trees.update();
     this.effects.clear();
+    this.life.reset();
     this.preview.clear();
     this.undoStack = [];
     this.sim.computeCoverage();
@@ -394,6 +397,7 @@ class Game {
     this.chunks.update(this.started ? 10 : 30);
     this.trees.update();
     this.vehicles.update(this.traffic.vehicles);
+    this.life.update(dt, this.world, this.sim, this.started ? TRAFFIC_SPEED[this.speed] : 1, this.camera.dist, this.time);
     this.effects.update(dt, this.time, this.started ? TRAFFIC_SPEED[this.speed] : 1, this.chunks, this.camera.dist);
     this.renderer.updateFrame(this.camera.target, this.camera.dist);
     if (this.pending && this.pending.fit) this.ui.positionConfirm(this.pending.fit);

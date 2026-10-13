@@ -255,7 +255,7 @@ function genApartment(B, w, d, lvl, rng) {
   for (let f = 3; f < floors - 1; f += 2) {
     B.box(tx0 - 0.04, f * FH, tz0 - 0.05, tx1 + 0.04, f * FH + 0.02, tz0, C.white, 0);
   }
-  B.box(0.3, 0.05, 0.02, w - 0.3, 0.09, 0.08, pick(rng, ACCENT), WIN.LAMP);
+  B.box(0.3, podH - 0.13, 0.065, w - 0.3, podH - 0.05, 0.08, pick(rng, ACCENT), WIN.LAMP);
   return topY;
 }
 

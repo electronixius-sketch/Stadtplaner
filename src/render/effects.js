@@ -92,6 +92,8 @@ export class Effects {
     this.v = new THREE.Vector3();
     this.s = new THREE.Vector3();
     this.e = new THREE.Euler();
+    this.qz = new THREE.Quaternion();
+    this.zAxis = new THREE.Vector3(0, 0, 1);
     this.emitAcc = 0;
   }
 
@@ -149,8 +151,8 @@ export class Effects {
         if (n >= 256) break;
         this.e.set(0, r.yaw, 0, 'YXZ');
         this.q.setFromEuler(this.e);
-        const qz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rotorAngle + (r.x * 1.3 + r.z));
-        this.q.multiply(qz);
+        this.qz.setFromAxisAngle(this.zAxis, this.rotorAngle + (r.x * 1.3 + r.z));
+        this.q.multiply(this.qz);
         this.m.compose(this.v.set(r.x, r.y, r.z), this.q, this.s.set(r.size, r.size, r.size));
         this.m.toArray(arr, n * 16);
         n++;
