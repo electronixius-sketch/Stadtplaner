@@ -85,6 +85,23 @@ export class Effects {
     this.icons.renderOrder = 10;
     scene.add(this.icons);
     this.spritePool = [];
+    // Hinweis-Pfeil zum Autobahnanschluss
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(20,28,40,0.9)';
+    g.beginPath(); if (g.roundRect) g.roundRect(8, 8, 304, 64, 18); else g.rect(8, 8, 304, 64); g.fill();
+    g.fillStyle = '#4dabf7';
+    g.beginPath(); g.moveTo(140, 72); g.lineTo(180, 72); g.lineTo(160, 118); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.font = 'bold 28px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('Hier anschließen', 160, 41);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.marker = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+    this.marker.center.set(0.5, 0);
+    this.marker.renderOrder = 11;
+    this.marker.visible = false;
+    scene.add(this.marker);
     this.iconList = [];
     this.m = new THREE.Matrix4();
     this.q = new THREE.Quaternion();
@@ -243,6 +260,11 @@ export class Effects {
     this.flames.count = k;
     this.flames.instanceMatrix.needsUpdate = true;
     this.flames.instanceColor.needsUpdate = true;
+    if (this.marker.visible) {
+      const s = Math.min(6, Math.max(1.6, camDist * 0.09));
+      this.marker.scale.set(s * 1.25, s * 0.5, 1);
+      this.marker.position.y = this.markerY + 0.3 + Math.abs(Math.sin(time * 2.5)) * 0.4;
+    }
     // Symbole wippen lassen und mit Zoom skalieren
     const sc2 = Math.min(0.95, Math.max(0.22, 0.16 + camDist * 0.0065));
     for (let i = 0; i < (this.iconCount || 0); i++) {
@@ -250,6 +272,12 @@ export class Effects {
       s.position.y = s.userData.base + Math.sin(time * 3 + s.userData.phase) * 0.06;
       s.scale.set(sc2, sc2, 1);
     }
+  }
+
+  showMarker(x, z, on) {
+    this.marker.visible = on;
+    this.markerY = 0.4;
+    this.marker.position.set(x, 0.7, z);
   }
 
   clear() {

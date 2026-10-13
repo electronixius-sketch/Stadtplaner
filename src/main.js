@@ -402,7 +402,12 @@ class Game {
     this.renderer.updateFrame(this.camera.target, this.camera.dist);
     if (this.pending && this.pending.fit) this.ui.positionConfirm(this.pending.fit);
     this.uiAcc += dt;
-    if (this.uiAcc > 0.25 && this.started) { this.uiAcc = 0; this.ui.update(); }
+    if (this.uiAcc > 0.25 && this.started) {
+      this.uiAcc = 0;
+      this.ui.update();
+      const st = this.world.start;
+      this.effects.showMarker(st.x - 4.5, st.y + 0.5, !this.sim.tasks.road);
+    }
     this.renderer.render();
   }
 }

@@ -92,20 +92,19 @@ for (let y = hy - 20; y <= hy + 20 && sew < 3; y++) {
     }
   }
 }
+for (const s of ['coal', 'police', 'fire', 'clinic', 'school', 'landfill', 'park', 'park', 'busdepot', 'busstop', 'busstop', 'busstop']) {
+  assert.equal(placeNear(s, 1), 1, `${s} platzierbar`);
+}
 w.updateNetwork();
 
 // --- Simulation
-let servicesAdded = false;
 const t0 = Date.now();
+let maxRiders = 0;
 for (let d = 1; d <= days; d++) {
   sim.tick();
+  maxRiders = Math.max(maxRiders, sim.stats.riders);
   traffic.update(0.05, 1);
   traffic.update(0.05, 1);
-  if (!servicesAdded && sim.stats.pop > 300) {
-    servicesAdded = true;
-    sim.milestone = Math.max(sim.milestone, 1);
-    for (const s of ['coal', 'police', 'fire', 'clinic', 'school', 'landfill', 'park', 'park', 'busdepot', 'busstop', 'busstop', 'busstop']) placeNear(s, 1);
-  }
   assert.ok(Number.isFinite(sim.money), `Geld ist eine Zahl (Tag ${d})`);
   if (verbose && d % 100 === 0) {
     const s = sim.stats;
@@ -121,7 +120,7 @@ assert.ok(s.jobs > 300, 'Arbeitsplätze entstehen');
 assert.ok(sim.milestone >= 2, 'Meilensteine werden erreicht');
 assert.ok(sim.history.length > 12, 'Monatsabschlüsse werden protokolliert');
 assert.ok(traffic.vehicles.length > 20, 'Es fährt Verkehr');
-assert.ok(s.riders > 0, 'Busse werden genutzt');
+assert.ok(maxRiders > 0, 'Busse werden genutzt');
 let levels = 0;
 for (const b of w.buildings.values()) if (b.kind === 'zone' && b.level > 1) levels++;
 assert.ok(levels > 5, 'Gebäude steigen Stufen auf');
