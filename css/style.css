@@ -19,6 +19,7 @@
   --safe-r: env(safe-area-inset-right, 0px);
   --top-h: 64px;
   --bar-h: 78px;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }

@@ -199,11 +199,18 @@ class Game {
 
   toggleFullscreen() {
     const d = document;
+    const run = (fn, ctx) => {
+      if (!fn) { this.ui.toast('Vollbild wird hier nicht unterstützt.', 'info'); return; }
+      try {
+        const r = fn.call(ctx);
+        if (r && r.catch) r.catch(() => this.ui.toast('Vollbild wird hier nicht unterstützt.', 'info'));
+      } catch (_) { /* ignorieren */ }
+    };
     if (!d.fullscreenElement && !d.webkitFullscreenElement) {
       const el = d.documentElement;
-      (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el);
+      run(el.requestFullscreen || el.webkitRequestFullscreen, el);
     } else {
-      (d.exitFullscreen || d.webkitExitFullscreen || (() => {})).call(d);
+      run(d.exitFullscreen || d.webkitExitFullscreen, d);
     }
   }
 
