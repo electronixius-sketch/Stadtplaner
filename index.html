@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#121821" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Stadtplaner" />
+  <meta name="description" content="Stadtplaner – ein 3D-Städtebauspiel für Tablets, inspiriert von Cities: Skylines." />
+  <title>Stadtplaner</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <!-- Statusleiste oben -->
+  <header id="topbar" class="glass">
+    <button id="btnMenu" class="icon-btn" aria-label="Menü">☰</button>
+    <div class="city">
+      <div id="cityName">Neustadt</div>
+      <div class="ms"><span id="milestone">Ackerland</span><div class="ms-bar"><i id="msProg"></i></div></div>
+      <div id="msNext" class="ms-next"></div>
+    </div>
+    <div class="stats">
+      <button class="stat" id="statPop" aria-label="Einwohner"><span class="si">👥</span><span id="popVal">0</span></button>
+      <button class="stat money" id="statMoney" aria-label="Geld"><span class="si">💰</span><span class="mv"><span id="moneyVal">0 €</span><small id="moneyDelta">±0 €/Monat</small></span></button>
+      <button class="stat" id="statHappy" aria-label="Zufriedenheit"><span class="si" id="happyIco">🙂</span><span id="happyVal">–</span></button>
+      <div class="stat date"><span class="si" id="clockIco">☀️</span><span class="mv"><span id="dateVal">1. Jan. 2026</span><small id="clockVal">08:30</small></span></div>
+    </div>
+    <button id="rci" aria-label="Nachfrage">
+      <div class="dem"><div class="track"><i id="demR" class="r"></i></div><span>W</span></div>
+      <div class="dem"><div class="track"><i id="demC" class="c"></i></div><span>G</span></div>
+      <div class="dem"><div class="track"><i id="demI" class="i"></i></div><span>I</span></div>
+      <div class="dem"><div class="track"><i id="demO" class="o"></i></div><span>B</span></div>
+    </button>
+    <div id="speed">
+      <button data-speed="0" aria-label="Pause">⏸</button>
+      <button data-speed="1" aria-label="Normal">▶</button>
+      <button data-speed="2" aria-label="Schnell">▶▶</button>
+      <button data-speed="3" aria-label="Sehr schnell">▶▶▶</button>
+    </div>
+    <button id="btnBudget" class="icon-btn" aria-label="Budget">📊</button>
+  </header>
+
+  <!-- Einführung -->
+  <aside id="tasks" class="glass hidden">
+    <div id="tasksHead"><b>🧭 Erste Schritte</b><span id="tasksCount">0/7</span></div>
+    <ul id="tasksList"></ul>
+  </aside>
+
+  <!-- Zwitscher-Feed -->
+  <div id="feed"></div>
+
+  <!-- Rechte Seitenknöpfe -->
+  <nav id="side">
+    <button id="btnUndo" class="icon-btn glass" aria-label="Rückgängig" title="Rückgängig">↶</button>
+    <button id="btnViews" class="icon-btn glass" aria-label="Info-Ansichten" title="Info-Ansichten">🗺️</button>
+    <div class="cam glass">
+      <button id="btnZoomIn" aria-label="Hineinzoomen">＋</button>
+      <button id="btnZoomOut" aria-label="Herauszoomen">－</button>
+      <button id="btnRotL" aria-label="Links drehen">⟲</button>
+      <button id="btnRotR" aria-label="Rechts drehen">⟳</button>
+      <button id="btnTiltUp" aria-label="Steiler">⤒</button>
+      <button id="btnTiltDown" aria-label="Flacher">⤓</button>
+    </div>
+  </nav>
+
+  <div id="hint" class="glass"><span id="hintText"></span><button id="hintClose" aria-label="Werkzeug beenden">✕</button></div>
+  <div id="itemDesc" class="glass"></div>
+  <div id="cursorLabel"></div>
+  <div id="confirm">
+    <button id="cfNo" aria-label="Abbrechen">✕</button>
+    <button id="cfRot" aria-label="Drehen">⟳</button>
+    <button id="cfOk" aria-label="Bauen">✓</button>
+  </div>
+  <div id="toasts"></div>
+
+  <section id="info" class="glass"></section>
+  <section id="viewsPanel" class="glass"></section>
+  <div id="legend" class="glass">
+    <div class="lg-head"><b id="legendTitle"></b><button id="legendClose" aria-label="Ansicht schließen">✕</button></div>
+    <div id="legendBar"></div>
+    <div class="lg-labels"><span id="legendLow"></span><span id="legendHigh"></span></div>
+  </div>
+
+  <!-- Werkzeugleiste unten -->
+  <section id="subpanel" class="glass"></section>
+  <footer id="toolbar" class="glass"></footer>
+
+  <div id="modal"></div>
+  <div id="loading"><div class="spinner"></div><div>Stadt wird geladen …</div></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
