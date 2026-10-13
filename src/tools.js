@@ -1,6 +1,6 @@
 // Bauwerkzeuge. Jede Aktion wird für "Rückgängig" aufgezeichnet.
 import { ROAD_TYPES, ZONES, SERVICES, T_WATER, T_LAND, BRIDGE_MULT, TREE_COST } from './config.js';
-import { fmtMoney, fmt, rgb } from './util.js';
+import { fmtMoney, rgb } from './util.js';
 import { makeBuilding } from './world.js';
 
 const OK = rgb(0x40c057), BAD = rgb(0xfa5252), SKIP = rgb(0x9aa5b1), WARN = rgb(0xffa94d), DEMO = rgb(0xff6b6b);
@@ -407,4 +407,3 @@ export function createTool(game, spec) {
   }
 }
 
-export { fmt };

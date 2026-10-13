@@ -1,7 +1,6 @@
 // Effekte: Rauch/Dampf aus Schornsteinen, Feuer, Windrad-Rotoren und Status-Symbole über Gebäuden.
 import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
-import { ZONES } from '../config.js';
 
 const MAXP = 700;
 
@@ -259,4 +258,3 @@ export class Effects {
   }
 }
 
-export { ZONES };

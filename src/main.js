@@ -19,7 +19,7 @@ import { Input } from './input.js';
 import { createTool } from './tools.js';
 import { UI } from './ui.js';
 import { Sound } from './audio.js';
-import { saveToStorage, loadFromStorage, serialize, deserialize, exportFile } from './save.js';
+import { saveToStorage, loadFromStorage, deserialize, exportFile } from './save.js';
 
 const SETTINGS_KEY = 'stadtplaner.settings.v1';
 
@@ -424,4 +424,3 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 
 boot();
 
-export { serialize };

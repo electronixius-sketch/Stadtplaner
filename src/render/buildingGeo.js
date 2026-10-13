@@ -938,4 +938,4 @@ export function addBuilding(B, b) {
   return h;
 }
 
-export { C as COLORS, CARS, LEAF, LEAF2, CONIFER, CONIFER2 };
+export { LEAF, LEAF2, CONIFER };

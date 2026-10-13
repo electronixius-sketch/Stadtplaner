@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { clamp } from './util.js';
 
-const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3();
+const v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
 
 export class CameraController {
   constructor(camera, mapSize) {
@@ -162,4 +162,3 @@ export class CameraController {
   }
 }
 
-export { v3 };

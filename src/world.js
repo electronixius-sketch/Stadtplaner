@@ -426,4 +426,3 @@ export class World {
   }
 }
 
-export { T_LAND, T_WATER, T_ROCK };

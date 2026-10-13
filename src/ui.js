@@ -1,6 +1,6 @@
 // DOM-Oberfläche: Statusleiste, Werkzeugleiste, Info-Panel, Dialoge, Zwitscher-Feed und Aufgaben.
 import {
-  ROAD_TYPES, ZONES, SERVICES, MILESTONES, EXPENSE_CATS, TREE_COST, CAPACITY,
+  ROAD_TYPES, ZONES, SERVICES, MILESTONES, EXPENSE_CATS, TREE_COST,
 } from './config.js';
 import { fmt, fmt1, fmtMoney, fmtSigned, clamp } from './util.js';
 import { VIEWS } from './render/overlay.js';
@@ -755,4 +755,3 @@ export class UI {
   }
 }
 
-export { CAPACITY };
