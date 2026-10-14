@@ -229,8 +229,15 @@ export class UI {
     const h = r.height || 60, wd = r.width || 200;
     let y = Math.min(pTop.y, pBot.y) - h - 16;
     if (y < 80) y = Math.max(pTop.y, pBot.y) + 24;
-    el.style.transform = `translate(${clamp(pTop.x - wd / 2, 8, innerWidth - wd - 8)}px, ${clamp(y, 80, innerHeight - h - 110)}px)`;
+    const fx = clamp(pTop.x - wd / 2, 8, innerWidth - wd - 8), fy = clamp(y, 80, innerHeight - h - 110);
+    el.style.transform = `translate(${fx}px, ${fy}px)`;
     el.classList.add('show');
+    // Kosten bzw. Fehlermeldung direkt unter den Knöpfen statt über ihnen
+    const lbl = $('cursorLabel');
+    if (lbl.classList.contains('show')) {
+      const lr = lbl.getBoundingClientRect();
+      lbl.style.transform = `translate(${clamp(fx + wd / 2 - lr.width / 2, 8, innerWidth - lr.width - 8)}px, ${fy + h + 8}px)`;
+    }
     $('cfOk').disabled = !fit.ok;
   }
 
