@@ -99,6 +99,8 @@ function convertV1(w, data) {
         if (done.has(key)) continue;
         done.add(key);
         while (!isJunction(cx, cy)) { cx += dx; cy += dy; }
+        // Dieselbe Strecke nicht noch einmal vom anderen Ende aus anlegen
+        done.add([cy * S + cx, (cy - dy) * S + cx - dx].sort((p, q) => p - q).join('-'));
         const b = getNode(cx, cy);
         if (a === b) continue;
         net.addSeg(a.id, b.id, road[y * S + x + dx + dy * S] || road[y * S + x], (a.x + b.x) / 2, (a.z + b.z) / 2);

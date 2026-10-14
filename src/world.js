@@ -392,6 +392,38 @@ export class World {
     this.updateNetwork();
   }
 
+  // Baukosten eines Segments (Brückenanteil teurer)
+  segCost(seg, type = seg.type) {
+    const p = {};
+    let water = 0;
+    for (let a = 0.125; a < seg.len; a += 0.25) {
+      this.net.at(seg, a, p);
+      if (this.terrainAt(p.x, p.z) === T_WATER) water += 0.25;
+    }
+    water = Math.min(water, seg.len);
+    return ROAD_TYPES[type].cost * (seg.len - water + water * BRIDGE_MULT);
+  }
+
+  // Prüft, ob ein Segment auf einen anderen Straßentyp umgebaut werden kann ('' = ja)
+  checkRoadType(segId, type) {
+    const s = this.net.segs.get(segId);
+    if (!s) return 'Keine Straße';
+    if ([s.a, s.b].some((id) => this.net.nodes.get(id).outside)) return 'Autobahnanschluss kann nicht umgebaut werden';
+    const hw = ROAD_TYPES[type].width / 2;
+    if (hw <= s.hw) return '';
+    const seen = new Set();
+    for (let tz = Math.floor(s.bbox.z0 - hw - 1); tz <= Math.floor(s.bbox.z1 + hw + 1); tz++) {
+      for (let tx = Math.floor(s.bbox.x0 - hw - 1); tx <= Math.floor(s.bbox.x1 + hw + 1); tx++) {
+        const b = this.getBuilding(tx, tz);
+        if (!b || b.kind !== 'service' || seen.has(b.id)) continue;
+        seen.add(b.id);
+        const r = this.rectOf(b);
+        for (let i = 0; i <= s.n; i++) if (rectDist(s.pts[i * 2], s.pts[i * 2 + 1], r) < hw - 0.03) return 'Gebäude im Weg';
+      }
+    }
+    return '';
+  }
+
   setRoadType(segId, type) {
     const s = this.net.segs.get(segId);
     if (!s || s.type === type) return;
@@ -465,15 +497,18 @@ export class World {
     const net = this.net;
     const nd = net.nodes.get(nodeId);
     if (nd.segs.length === 1) return 0.2;
-    if (nd.segs.length === 2) {
+    const j = net.junction(nd);
+    if (j.smooth) {
       // Gerade Fortsetzung: Zellen laufen ohne Lücke weiter
-      const other = net.segs.get(nd.segs[0] === own.id ? nd.segs[1] : nd.segs[0]);
-      const [ax, az] = net.armDir(own, nodeId), [bx, bz] = net.armDir(other, nodeId);
-      if (ax * bx + az * bz < -0.9 && other.type === own.type) return 0;
+      const [p, q] = j.arms;
+      if (p.dx * q.dx + p.dz * q.dz < -0.9) return 0;
     }
-    let m = 0;
-    for (const sid of nd.segs) if (sid !== own.id) m = Math.max(m, net.segs.get(sid).hw);
-    return m + 0.15;
+    let m = 0, t = 0;
+    for (const a of j.arms) {
+      if (a.seg.id !== own.id) m = Math.max(m, a.hw);
+      else t = a.t;
+    }
+    return Math.max(m + 0.15, t + 0.05);
   }
 
   genCells() {
@@ -637,10 +672,15 @@ export class World {
     if (b.id >= this.nextId) this.nextId = b.id + 1;
     this.buildings.set(b.id, b);
     this.rasterBuilding(b);
+    for (const i of b.tiles) this.bld[i] = b.id;
+    // Bäume auf und direkt neben dem Grundstück fällen
     let treesChanged = false;
-    for (const i of b.tiles) {
-      this.bld[i] = b.id;
-      if (this.trees[i]) { this.trees[i] = 0; treesChanged = true; }
+    const r = this.rectOf(b), bb = rectBounds(r, 1);
+    for (let tz = Math.max(0, Math.floor(bb.z0)); tz <= Math.min(this.size - 1, Math.floor(bb.z1)); tz++) {
+      for (let tx = Math.max(0, Math.floor(bb.x0)); tx <= Math.min(this.size - 1, Math.floor(bb.x1)); tx++) {
+        const i = tz * this.size + tx;
+        if (this.trees[i] && rectDist(tx + 0.5, tz + 0.5, r) < 0.7) { this.trees[i] = 0; treesChanged = true; }
+      }
     }
     if (treesChanged) this.treesVersion++;
     b.chunk = this.chunkOf(b.cx, b.cz);

@@ -1,10 +1,11 @@
-// Chunk-Verwaltung: Straßen, Bäume und Gebäude werden pro 16x16-Chunk zu einem Mesh zusammengefasst
-// und nur bei Änderungen neu erzeugt. Zonenfelder liegen als transparente Overlay-Meshes darüber.
+// Chunk-Verwaltung: Straßensegmente, Kreuzungen und Gebäude werden pro 16x16-Chunk zu einem Mesh
+// zusammengefasst und nur bei Änderungen neu erzeugt. Zonenzellen liegen als transparente Overlays darüber.
 import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
 import { addBuilding } from './buildingGeo.js';
-import { addRoadTile } from './roadGeo.js';
-import { CHUNK_SIZE, ZONES, T_WATER } from '../config.js';
+import { addSegment, addNode, nodeKey, segKey } from './roadGeo.js';
+import { ZONES } from '../config.js';
+import { rectAxes } from '../geom.js';
 import { rgb, mixc } from '../util.js';
 
 const ZONE_COL = {};
@@ -13,9 +14,19 @@ for (const z of Object.values(ZONES)) {
   ZONE_COL[z.id] = { fill: mixc(c, [1, 1, 1], 0.15), border: c };
 }
 
-function zquad(pos, col, x0, z0, x1, z1, y, c, a) {
-  pos.push(x0, y, z0, x0, y, z1, x1, y, z1, x0, y, z0, x1, y, z1, x1, y, z0);
-  for (let k = 0; k < 6; k++) col.push(c[0], c[1], c[2], a);
+// Viereck nach oben (Reihenfolge der Ecken beliebig herum)
+function zquad(pos, col, a, b, c, d, y, rgbc, alpha) {
+  const cr = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
+  const q = cr >= 0 ? [a, b, c, a, c, d] : [a, c, b, a, d, c];
+  for (const p of q) {
+    pos.push(p[0], y, p[1]);
+    col.push(rgbc[0], rgbc[1], rgbc[2], alpha);
+  }
+}
+
+// Punkt im gedrehten Rahmen einer Zelle: u entlang der Straße, v in die Tiefe (jeweils -0.5..0.5)
+function cellPt(c, ax, u, v) {
+  return [c.cx + ax.lx * u * c.w + ax.dx * v * c.d, c.cz + ax.lz * u * c.w + ax.dz * v * c.d];
 }
 
 export class ChunkManager {
@@ -38,7 +49,10 @@ export class ChunkManager {
     }
     this.world = world;
     this.chunks = [];
-    this.roadCache = new Map();
+    this.segCache = new Map();
+    this.nodeCache = new Map();
+    this.cellChunks = null;
+    this.cellsVer = -1;
     const N = world.chunkN;
     for (let c = 0; c < N * N; c++) {
       const mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.mats.world);
@@ -82,8 +96,8 @@ export class ChunkManager {
     w.zoneDirty.clear();
   }
 
-  // Geometrieblöcke werden pro Gebäude bzw. Straßenfeld zwischengespeichert und nur bei
-  // Zustandsänderungen neu erzeugt. Ein Chunk-Neuaufbau kopiert dann nur noch Arrays.
+  // Geometrieblöcke werden pro Gebäude, Segment und Knoten zwischengespeichert und nur bei
+  // Formänderungen neu erzeugt. Ein Chunk-Neuaufbau kopiert dann nur noch Arrays.
   blockFrom(B) {
     return {
       n: B.count, pos: new Float32Array(B.pos), nor: new Float32Array(B.nor), col: new Float32Array(B.col),
@@ -94,7 +108,7 @@ export class ChunkManager {
   buildingBlock(b) {
     const stage = b.built < 1 ? Math.floor(b.built * 3) : 3;
     const winOff = b.abandoned || !b.power || (b.kind === 'zone' && b.occ === 0 && b.built >= 1);
-    const key = `${b.level}|${stage}|${b.abandoned ? 1 : 0}|${winOff ? 1 : 0}|${b.x},${b.y},${b.dir}`;
+    const key = `${b.level}|${stage}|${b.abandoned ? 1 : 0}|${winOff ? 1 : 0}|${b.cx},${b.cz},${b.rot},${b.w},${b.d}`;
     if (b._geo && b._geo.key === key) return b._geo;
     const B = new MeshBuilder();
     const h = addBuilding(B, b);
@@ -106,30 +120,42 @@ export class ChunkManager {
     return blk;
   }
 
-  roadBlock(i, x, y) {
-    const w = this.world;
-    const type = w.road[i], mask = w.roadMask(x, y), water = w.terrain[i] === T_WATER;
-    const key = type * 64 + mask * 2 + (water ? 1 : 0);
-    const c = this.roadCache.get(i);
+  segBlock(seg) {
+    const w = this.world, net = w.net;
+    const key = segKey(net, seg);
+    const c = this.segCache.get(seg.id);
     if (c && c.key === key) return c;
     const B = new MeshBuilder();
-    addRoadTile(B, x, y, type, mask, water);
+    addSegment(B, net, seg, net.junction(net.nodes.get(seg.a)), net.junction(net.nodes.get(seg.b)), (x, z) => w.terrainAt(x, z));
     const blk = this.blockFrom(B);
     blk.key = key;
-    this.roadCache.set(i, blk);
+    this.segCache.set(seg.id, blk);
+    return blk;
+  }
+
+  nodeBlock(node) {
+    const w = this.world, net = w.net;
+    const key = nodeKey(node);
+    const c = this.nodeCache.get(node.id);
+    if (c && c.key === key) return c;
+    const B = new MeshBuilder();
+    addNode(B, node, net.junction(node), (x, z) => w.terrainAt(x, z));
+    const blk = this.blockFrom(B);
+    blk.key = key;
+    this.nodeCache.set(node.id, blk);
     return blk;
   }
 
   rebuild(c) {
-    const w = this.world, S = w.size, N = w.chunkN;
-    const cx = c % N, cy = (c / N) | 0;
+    const w = this.world, net = w.net;
     const blocks = [];
-    for (let y = cy * CHUNK_SIZE; y < (cy + 1) * CHUNK_SIZE; y++) {
-      for (let x = cx * CHUNK_SIZE; x < (cx + 1) * CHUNK_SIZE; x++) {
-        const i = y * S + x;
-        if (w.road[i]) blocks.push(this.roadBlock(i, x, y));
-        else if (this.roadCache.has(i)) this.roadCache.delete(i);
-      }
+    for (const id of w.chunkSegs[c]) {
+      const s = net.segs.get(id);
+      if (s) blocks.push(this.segBlock(s));
+    }
+    for (const id of w.chunkNodes[c]) {
+      const n = net.nodes.get(id);
+      if (n && n.segs.length) blocks.push(this.nodeBlock(n));
     }
     for (const id of w.chunkBld[c]) {
       const b = w.buildings.get(id);
@@ -158,29 +184,44 @@ export class ChunkManager {
     ch.emitters = emitters;
     ch.rotors = rotors;
     this.version++;
+    // Caches gelegentlich von gelöschten Segmenten/Knoten befreien
+    if (this.segCache.size > net.segs.size * 2 + 64) for (const id of this.segCache.keys()) if (!net.segs.has(id)) this.segCache.delete(id);
+    if (this.nodeCache.size > net.nodes.size * 2 + 64) for (const id of this.nodeCache.keys()) if (!net.nodes.has(id)) this.nodeCache.delete(id);
+  }
+
+  cellsOfChunk(c) {
+    const w = this.world;
+    if (this.cellsVer !== w.cellsVersion || !this.cellChunks) {
+      this.cellsVer = w.cellsVersion;
+      this.cellChunks = Array.from({ length: this.chunks.length }, () => []);
+      for (const cell of w.cells) this.cellChunks[w.chunkOf(cell.cx, cell.cz)].push(cell);
+    }
+    return this.cellChunks[c];
   }
 
   rebuildZones(c) {
-    const w = this.world, S = w.size, N = w.chunkN;
-    const cx = c % N, cy = (c / N) | 0;
     const pos = [], col = [];
     const zy = 0.03;
-    for (let y = cy * CHUNK_SIZE; y < (cy + 1) * CHUNK_SIZE; y++) {
-      for (let x = cx * CHUNK_SIZE; x < (cx + 1) * CHUNK_SIZE; x++) {
-        const i = y * S + x;
-        if (w.road[i] || w.bld[i] >= 0) continue;
-        const z = w.zone[i];
-        if (z) {
-          const zc = ZONE_COL[z];
-          const a = 0.07, b = 0.13;
-          zquad(pos, col, x + b, y + b, x + 1 - b, y + 1 - b, zy, zc.fill, 0.34);
-          zquad(pos, col, x + a, y + a, x + 1 - a, y + b, zy, zc.border, 0.85);
-          zquad(pos, col, x + a, y + 1 - b, x + 1 - a, y + 1 - a, zy, zc.border, 0.85);
-          zquad(pos, col, x + a, y + b, x + b, y + 1 - b, zy, zc.border, 0.85);
-          zquad(pos, col, x + 1 - b, y + b, x + 1 - a, y + 1 - b, zy, zc.border, 0.85);
-        } else if (this.showGrid && w.zoneable[i]) {
-          zquad(pos, col, x + 0.07, y + 0.07, x + 0.93, y + 0.93, zy, [1, 1, 1], 0.2);
-        }
+    for (const cell of this.cellsOfChunk(c)) {
+      if (cell.bld >= 0) continue;
+      const ax = rectAxes(cell);
+      const P = (u, v) => cellPt(cell, ax, u, v);
+      if (cell.zone) {
+        const zc = ZONE_COL[cell.zone];
+        const a = 0.44, b = 0.37;
+        zquad(pos, col, P(-b, -b), P(b, -b), P(b, b), P(-b, b), zy, zc.fill, 0.34);
+        zquad(pos, col, P(-a, -a), P(a, -a), P(a, -b), P(-a, -b), zy, zc.border, 0.85);
+        zquad(pos, col, P(-a, b), P(a, b), P(a, a), P(-a, a), zy, zc.border, 0.85);
+        zquad(pos, col, P(-a, -b), P(-b, -b), P(-b, b), P(-a, b), zy, zc.border, 0.85);
+        zquad(pos, col, P(b, -b), P(a, -b), P(a, b), P(b, b), zy, zc.border, 0.85);
+      } else if (this.showGrid) {
+        const a = 0.45, b = 0.41;
+        const wc = [1, 1, 1];
+        zquad(pos, col, P(-a, -a), P(a, -a), P(a, -b), P(-a, -b), zy, wc, 0.5);
+        zquad(pos, col, P(-a, b), P(a, b), P(a, a), P(-a, a), zy, wc, 0.5);
+        zquad(pos, col, P(-a, -b), P(-b, -b), P(-b, b), P(-a, b), zy, wc, 0.5);
+        zquad(pos, col, P(b, -b), P(a, -b), P(a, b), P(b, b), zy, wc, 0.5);
+        zquad(pos, col, P(-b, -b), P(b, -b), P(b, b), P(-b, b), zy, wc, 0.1);
       }
     }
     const g = new THREE.BufferGeometry();

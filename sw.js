@@ -1,9 +1,10 @@
 // Service Worker: speichert alle Spieldateien für das Offline-Spielen auf dem Tablet.
-const CACHE = 'stadtplaner-v2';
+const CACHE = 'stadtplaner-v3';
 const FILES = [
   './', './index.html', './css/style.css', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
   './vendor/three.module.min.js',
   './src/main.js', './src/config.js', './src/util.js', './src/noise.js', './src/mapgen.js', './src/world.js', './src/sim.js',
+  './src/geom.js', './src/network.js',
   './src/traffic.js', './src/names.js', './src/camera.js', './src/input.js', './src/tools.js', './src/ui.js', './src/audio.js', './src/save.js',
   './src/render/materials.js', './src/render/builder.js', './src/render/buildingGeo.js', './src/render/roadGeo.js', './src/render/chunks.js',
   './src/render/terrainMesh.js', './src/render/scene.js', './src/render/vehicles.js', './src/render/effects.js', './src/render/overlay.js',

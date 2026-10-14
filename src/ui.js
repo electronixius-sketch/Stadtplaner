@@ -30,10 +30,10 @@ const TASKS = [
 function itemInfo(spec) {
   if (spec.kind === 'road') {
     const r = ROAD_TYPES[spec.type];
-    return { icon: r.icon, name: r.name, cost: r.cost, unit: '/Feld', upkeep: r.upkeep, desc: r.desc, unlock: r.unlock };
+    return { icon: r.icon, name: r.name, cost: r.cost, unit: '/8 m', upkeep: r.upkeep, desc: r.desc, unlock: r.unlock };
   }
   if (spec.kind === 'zone') {
-    if (!spec.zone) return { icon: '🧽', name: 'Zonen entfernen', cost: 0, desc: 'Entfernt Zonen in einem Rechteck.', unlock: 0, color: '#ff6b6b' };
+    if (!spec.zone) return { icon: '🧽', name: 'Zonen entfernen', cost: 0, desc: 'Entfernt Zonen mit Pinsel oder Füllen.', unlock: 0, color: '#ff6b6b' };
     const z = ZONES[spec.zone];
     return { icon: z.icon, name: z.name, cost: 0, desc: z.desc, unlock: z.unlock, color: '#' + z.color.toString(16).padStart(6, '0') };
   }
@@ -134,7 +134,7 @@ export class UI {
       const el = document.createElement('button');
       el.className = 'item' + (locked ? ' locked' : '') + (sameSpec(spec, this.toolSpec) ? ' active' : '');
       const cost = info.cost ? `${fmtMoney(info.cost)}${info.unit || ''}` : spec.kind === 'zone' ? 'kostenlos' : '';
-      const upkeep = info.upkeep ? `<span class="upk">${fmtMoney(info.upkeep)}${spec.kind === 'road' ? '/Feld' : ''}/Mon.</span>` : '';
+      const upkeep = info.upkeep ? `<span class="upk">${fmtMoney(info.upkeep)}${spec.kind === 'road' ? '/8 m' : ''}/Mon.</span>` : '';
       const unique = spec.kind === 'service' && SERVICES[spec.def].unique && this.g.world.unique[spec.def] !== undefined;
       el.innerHTML = `
         <span class="it-ico" ${info.color ? `style="background:${info.color}33;border-color:${info.color}"` : ''}>${info.icon}</span>
@@ -173,11 +173,34 @@ export class UI {
     if (this.cat) this.renderSubpanel();
     const hint = $('hint');
     if (spec && this.g.tool) {
-      $('hintText').textContent = this.g.tool.hint;
+      this.renderHint();
       hint.classList.add('show');
       this.closeInfo();
     } else hint.classList.remove('show');
     if (!spec) { this.setCursorLabel(null); this.positionConfirm(null); }
+  }
+
+  // Hinweistext und Bauweisen des aktiven Werkzeugs (z. B. Freihand / Gerade / Kurve)
+  renderHint() {
+    const tool = this.g.tool;
+    if (!tool) return;
+    $('hintText').textContent = tool.hint;
+    const box = $('hintModes');
+    const modes = tool.modes;
+    box.innerHTML = '';
+    box.classList.toggle('hidden', !modes);
+    if (!modes) return;
+    for (const m of modes) {
+      const b = document.createElement('button');
+      b.className = 'mode' + (m.id === tool.mode ? ' active' : '');
+      b.innerHTML = `<span>${m.icon}</span>${m.label}`;
+      b.onclick = () => {
+        this.g.sound.click();
+        this.g.setToolMode(m.id);
+        this.renderHint();
+      };
+      box.appendChild(b);
+    }
   }
 
   setCursorLabel(text, bad = false) {
@@ -199,7 +222,7 @@ export class UI {
     if (!fit) { el.classList.remove('show'); return; }
     // Knöpfe über dem Geister-Gebäude, sonst darunter
     const top = this.g.preview.ghostTop || 1;
-    const cx = fit.x + fit.W / 2, cz = fit.y + fit.H / 2;
+    const cx = fit.cx, cz = fit.cz;
     const pTop = this.g.worldToScreen(cx, top + 0.3, cz);
     const pBot = this.g.worldToScreen(cx, 0, cz);
     const r = el.getBoundingClientRect();
@@ -266,9 +289,9 @@ export class UI {
     const t = sim.tasks;
     if (t.allDone) { $('tasks').classList.add('hidden'); return; }
     const has = { R: 0, C: 0, I: 0 };
-    if (!t.res || !t.ci) for (let i = 0; i < w.n; i++) { const z = w.zone[i]; if (z) has[ZONES[z].key] = 1; }
+    if (!t.res || !t.ci) for (const c of w.cells) if (c.zone) has[ZONES[c.zone].key] = 1;
     if (!t.road) {
-      for (let i = 0; i < w.n; i++) if (w.road[i] && w.road[i] !== 3 && w.comp[i] >= 0 && w.compOutside[w.comp[i]]) { t.road = true; break; }
+      for (const sg of w.net.segs.values()) if (sg.type !== 3 && w.net.compOutside[sg.comp]) { t.road = true; break; }
     }
     if (has.R) t.res = true;
     if (has.C && has.I) t.ci = true;
@@ -337,20 +360,24 @@ export class UI {
     this.g.highlight(b);
   }
 
-  showRoadInfo(i) {
+  showRoadInfo(id) {
     const w = this.g.world;
+    const seg = w.net.segs.get(id);
+    if (!seg) return;
     this.infoB = null;
-    this.infoRoad = i;
-    const t = ROAD_TYPES[w.road[i]];
-    const dens = this.g.traffic.density[i];
+    this.infoRoad = id;
+    const t = ROAD_TYPES[seg.type];
+    const dens = seg.density || 0;
+    const mid = w.net.at(seg, seg.len / 2);
+    const bridge = w.terrainAt(mid.x, mid.z) === 1;
     $('info').innerHTML = `
-      <div class="info-head"><span class="info-icon">${t.icon}</span><div><h3>${t.name}</h3><div class="sub">${w.terrain[i] === 1 ? 'Brücke' : 'Straßenabschnitt'}</div></div>
+      <div class="info-head"><span class="info-icon">${t.icon}</span><div><h3>${t.name}</h3><div class="sub">${bridge ? 'Brücke' : 'Straßenabschnitt'} · ${Math.round(seg.len * 8)} m</div></div>
       <button class="x" id="infoClose">✕</button></div>
       <div class="info-body">
         ${this.bar('Verkehrsauslastung', clamp(dens, 0, 1) * 100, dens > 0.8 ? 'bad' : dens > 0.5 ? 'mid' : 'good', `${Math.round(clamp(dens, 0, 1.5) * 100)} %`)}
         <div class="kv"><span>Höchstgeschwindigkeit</span><b>${t.kmh} km/h</b></div>
-        <div class="kv"><span>Unterhalt</span><b>${fmtMoney(t.upkeep)}/Monat</b></div>
-        <p class="tip">Tipp: Mit Alleen (ab ${fmt(MILESTONES[2].pop)} Einw.) erhöhst du die Kapazität stark befahrener Straßen.</p>
+        <div class="kv"><span>Unterhalt</span><b>${fmtMoney(t.upkeep * seg.len)}/Monat</b></div>
+        <p class="tip">Tipp: Wähle im Straßenmenü einen anderen Straßentyp und tippe auf diesen Abschnitt, um ihn umzubauen.</p>
       </div>`;
     $('infoClose').onclick = () => this.closeInfo();
     $('info').classList.add('show');
@@ -373,7 +400,7 @@ export class UI {
     const b = this.infoB;
     const g = this.g, w = g.world, sim = g.sim;
     if (!b || !w.buildings.has(b.id)) { this.closeInfo(); return; }
-    const ci = w.idx(b.x + (b.W >> 1), b.y + (b.H >> 1));
+    const ci = b.ti;
     const cov = sim.cov;
     const pct = (v) => `${Math.round(clamp(v, 0, 1) * 100)} %`;
     const chip = (ok, ico, label) => `<span class="chip ${ok ? 'ok' : 'no'}">${ico} ${label}</span>`;
@@ -385,7 +412,7 @@ export class UI {
       if (b.fire > 0) body += `<div class="status bad">🔥 Das Gebäude brennt!${b.fireCovered ? ' Die Feuerwehr ist unterwegs.' : ' Keine Feuerwache in Reichweite!'}</div>`;
       if (b.abandoned) body += '<div class="status bad">🏚️ Verlassen – die Bewohner waren zu unzufrieden.</div>';
       else if (b.built < 1) body += `<div class="status mid">🏗️ ${b.level > 1 ? 'Wird ausgebaut' : 'Im Bau'} (${Math.round(b.built * 100)} %)</div>`;
-      if (b.access < 0) body += '<div class="status bad">🚧 Keine Straßenanbindung</div>';
+      if (b.seg < 0) body += '<div class="status bad">🚧 Keine Straßenanbindung</div>';
       else if (!b.connected) body += '<div class="status bad">🛣️ Nicht mit der Autobahn verbunden</div>';
       const isR = z.key === 'R';
       body += this.bar(isR ? 'Bewohner' : 'Beschäftigte', b.cap ? (b.occ / b.cap) * 100 : 0, 'info', `${fmt(b.occ)} / ${fmt(b.cap)}`);
@@ -411,7 +438,7 @@ export class UI {
     } else {
       const d = SERVICES[b.def];
       head = { icon: d.icon, title: d.name, sub: d.desc || '' };
-      if (b.access < 0) body += '<div class="status bad">🚧 Keine Straßenanbindung</div>';
+      if (b.seg < 0) body += '<div class="status bad">🚧 Keine Straßenanbindung</div>';
       if (b.fire > 0) body += '<div class="status bad">🔥 Das Gebäude brennt!</div>';
       if (d.powerUse && !b.power) body += '<div class="status bad">⚡ Kein Strom – Gebäude arbeitet nicht</div>';
       if (d.power) body += `<div class="kv"><span>Stromerzeugung</span><b>${d.power} MW</b></div>`;
@@ -435,7 +462,7 @@ export class UI {
     el.dataset.h = html;
     el.innerHTML = html;
     $('infoClose').onclick = () => this.closeInfo();
-    $('infoFocus').onclick = () => g.camera.animateTo({ x: b.x + b.W / 2, z: b.y + b.H / 2, dist: Math.max(10, Math.min(g.camera.dist, 22)) });
+    $('infoFocus').onclick = () => g.camera.animateTo({ x: b.cx, z: b.cz, dist: Math.max(10, Math.min(g.camera.dist, 22)) });
     const dm = $('infoDemolish');
     if (dm) dm.onclick = () => g.demolish(b);
   }

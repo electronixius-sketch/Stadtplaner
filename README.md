@@ -33,16 +33,23 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 
 - **Prozedurale Karten** (128 × 128 Felder) mit Fluss, See, Bergen, Wäldern und einem
   Autobahnanschluss an die Außenwelt – jede Kartennummer ergibt eine andere Landschaft.
-- **Straßen** per Fingerzug: Straße, Allee (mit Bäumen und Mittelstreifen), Autobahn.
-  Über Wasser entstehen automatisch Brücken. Kreuzungen bekommen Zebrastreifen.
-- **Zonen** wie in Cities: Skylines – Wohnen, Gewerbe, Industrie und Büros, teils in
-  hoher Dichte. Gebäude wachsen automatisch, werden gebaut (mit Gerüst und Kran) und
-  steigen mit Bodenwert, Bildung und Zufriedenheit bis zu 5 Stufen auf.
+- **Organisches Straßennetz** wie in Cities: Skylines – Straßen sind frei verlaufende Kurven
+  in jedem Winkel, kein Raster. Drei Bauweisen: **Freihand** (mit dem Finger zeichnen),
+  **Gerade** (rastet rechtwinklig oder in Verlängerung ein) und **Kurve** (Richtung ziehen,
+  Endpunkt tippen). Neue Straßen schnappen an Kreuzungen und Straßen ein, Kreuzungen
+  entstehen automatisch mit abgerundeten Bordsteinen und Zebrastreifen, über Wasser
+  entstehen Brücken. Tippen auf eine Straße baut sie zum gewählten Typ um
+  (Straße, Allee mit Bäumen und Mittelstreifen, Autobahn).
+- **Zonen** auf Zellen, die den Straßen folgen (bis 4 Reihen tief, auch in Kurven), per
+  **Pinsel**, **großem Pinsel** oder **Füllen** eines ganzen Blocks. Wohnen, Gewerbe,
+  Industrie und Büros, teils in hoher Dichte. Gebäude wachsen automatisch entlang der
+  Straße gedreht, werden gebaut (mit Gerüst und Kran) und steigen mit Bodenwert, Bildung
+  und Zufriedenheit bis zu 5 Stufen auf.
 - **Nachfrage-Balken** (W/G/I/B) wie das RCI-Modell: Arbeitsplätze, Einwohner, Waren und
   Bildung beeinflussen sich gegenseitig.
 - **Versorgung**: Strom (Windrad, Kohle, Solar, Müllverbrennung), Wasser und Abwasser.
   Leitungen liegen unter den Straßen – nur verbundene Netze werden versorgt.
-- **Dienste** mit Wirkungsradius: Polizei, Feuerwehr, Arztpraxis/Krankenhaus,
+- **Dienste** mit Wirkungsradius, frei an jeder Straße platzierbar und automatisch zur Straße ausgerichtet: Polizei, Feuerwehr, Arztpraxis/Krankenhaus,
   Grundschule/Gymnasium/Universität, Mülldeponie, Parks, Rathaus, Stadion, Fernsehturm.
 - **Nahverkehr**: Busdepot und Haltestellen – Busse fahren sichtbar durch die Stadt,
   entlasten die Straßen und bringen Fahrkarteneinnahmen.
@@ -71,7 +78,7 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 | 2 Finger | Zoomen (spreizen), Drehen (verdrehen), Verschieben |
 | 3 Finger hoch/runter | Kamera neigen (alternativ Knöpfe rechts) |
 | Tippen | Gebäude- oder Straßeninfos |
-| Gebäude platzieren | Ziehen, dann ✓ (⟳ dreht, ✕ bricht ab) |
+| Gebäude platzieren | Neben eine Straße ziehen, dann ✓ (⇅ wechselt die Straßenseite, ✕ bricht ab) |
 
 | Maus / Tastatur | Aktion |
 | --- | --- |
@@ -85,7 +92,8 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 ## Tipps für den Einstieg
 
 1. Baue eine Straße, die an die **Autobahn** anschließt – nur so ziehen Menschen zu.
-2. Weise **Wohn-, Gewerbe- und Industriezonen** entlang der Straßen aus (bis 3 Felder tief).
+2. Weise **Wohn-, Gewerbe- und Industriezonen** auf den Zellen entlang der Straßen aus
+   (Pinsel oder Füllen).
    Halte Industrie wegen der Abgase etwas abseits der Wohngebiete.
 3. Baue ein **Windrad** sowie **Wasserpumpe und Abwasserauslass** am Flussufer
    (Abwasser flussabwärts der Pumpe ist realistisch, spielt aber keine Rolle).
@@ -97,6 +105,9 @@ aufrufen, z. B. `http://192.168.1.20:8080`.
 
 - Reines JavaScript (ES-Module), keine Build-Schritte. [three.js](https://threejs.org) r170
   liegt unter `vendor/` (MIT-Lizenz).
+- Das Straßennetz ist ein Graph aus Knoten und quadratischen Bézier-Segmenten
+  (`src/network.js`, `src/geom.js`). Kreuzungen teilen Segmente automatisch, Zonenzellen
+  werden je Straßenseite erzeugt, Gebäude sind frei gedrehte Rechtecke.
 - Alle Gebäude, Straßen und Bäume sind prozedural erzeugte Low-Poly-Geometrie; Fenster,
   Nachtbeleuchtung und Info-Ansichten entstehen im Shader. Die Welt wird in 16 × 16-Chunks
   gerendert, Geometrie pro Gebäude zwischengespeichert, Bäume und Fahrzeuge per Instancing.
@@ -113,7 +124,8 @@ npm test            # baut eine Teststadt und simuliert 1500 Spieltage
 index.html, css/style.css     Oberfläche
 manifest.webmanifest, sw.js   PWA (Installation, Offline)
 src/config.js                 Gebäude, Zonen, Kosten, Meilensteine
-src/mapgen.js, src/world.js   Karte, Straßennetz, Zonen, Gebäude, Rückgängig
+src/mapgen.js, src/world.js   Karte, Zonenzellen, Gebäude, Straßenplanung, Rückgängig
+src/network.js, src/geom.js   Straßengraph mit Kurven, Kreuzungsgeometrie, Geometrie-Helfer
 src/sim.js, src/traffic.js    Simulation und Verkehr
 src/render/                   3D-Darstellung (Gelände, Chunks, Gebäude, Effekte …)
 src/ui.js, src/tools.js       Oberfläche und Bauwerkzeuge

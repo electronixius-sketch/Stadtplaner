@@ -67,11 +67,11 @@ export class Overlay {
           break;
         case 'power':
           if (b) put(i, b.power ? GRN : RED, 230);
-          else if (world.road[i] && world.comp[i] >= 0) put(i, [250, 210, 60], 140);
+          else if (world.road[i]) put(i, [250, 210, 60], 140);
           break;
         case 'water':
           if (b) put(i, b.water && b.sewage ? BLUE : RED, 230);
-          else if (world.road[i] && world.comp[i] >= 0) put(i, [120, 190, 250], 140);
+          else if (world.road[i]) put(i, [120, 190, 250], 140);
           break;
         case 'pollution': {
           const v = sim.pollution[i] / 60;

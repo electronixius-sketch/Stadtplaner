@@ -103,10 +103,14 @@ export class TreeLayer {
       for (let x = 0; x < S; x++) {
         const i = y * S + x;
         const cnt = w.trees[i];
-        if (!cnt || w.road[i] || w.bld[i] >= 0) continue;
+        if (!cnt || w.road[i]) continue;
         for (let k = 0; k < cnt; k++) {
           const r = mulberry32((x * 73856093) ^ (y * 19349663) ^ (k * 83492791) ^ w.seed);
           const tx = x + 0.18 + r() * 0.64, tz = y + 0.18 + r() * 0.64;
+          // Nicht auf Straßen, Gehwegen oder Grundstücken
+          const ns = w.net.nearestSeg(tx, tz, 1.2);
+          if (ns && ns.d < ns.seg.hw + 0.1) continue;
+          if (w.buildingAt(tx, tz, 0.08)) continue;
           const s = 0.75 + r() * 0.6;
           const conifer = r() < 0.38;
           const col = conifer ? pick(r, CONIFER) : pick(r, r() < 0.5 ? LEAF : LEAF2);

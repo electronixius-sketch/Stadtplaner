@@ -33,6 +33,32 @@ export class MeshBuilder {
     }
   }
 
+  // Gedrehtes Grundstück {cx, cz, rot, w, d}: Front (Straße) bei lokal z = 0
+  rotFrame(cx, cz, rot, w, d, oy = 0) {
+    const c = Math.cos(rot), s = Math.sin(rot);
+    this.frame(cx - c * w / 2 + s * d / 2, cz - s * w / 2 - c * d / 2, c, s, -s, c, oy);
+    return { w, d };
+  }
+
+  // Helfer in Weltkoordinaten (Rahmen = Identität), Ausrichtung wird automatisch korrigiert
+  triUp(ax, az, bx, bz, cx, cz, y, col, w = 0) {
+    const cr = (bz - az) * (cx - ax) - (bx - ax) * (cz - az);
+    if (Math.abs(cr) < 1e-10) return;
+    if (cr > 0) this.tri([ax, y, az], [bx, y, bz], [cx, y, cz], col, w);
+    else this.tri([ax, y, az], [cx, y, cz], [bx, y, bz], col, w);
+  }
+
+  quadUp(a, b, c, d, y, col, w = 0) {
+    this.triUp(a[0], a[1], b[0], b[1], c[0], c[1], y, col, w);
+    this.triUp(a[0], a[1], c[0], c[1], d[0], d[1], y, col, w);
+  }
+
+  // Senkrechte Wand von a nach b, Normale zeigt Richtung (fx, fz)
+  wall(a, b, y0, y1, col, fx, fz, w = 0) {
+    if ((b[1] - a[1]) * fx - (b[0] - a[0]) * fz < 0) { const t = a; a = b; b = t; }
+    this.quad([a[0], y0, a[1]], [a[0], y1, a[1]], [b[0], y1, b[1]], [b[0], y0, b[1]], col, w);
+  }
+
   wx(lx, lz) { return this.ox + this.Lx * lx + this.Dx * lz; }
   wz(lx, lz) { return this.oz + this.Lz * lx + this.Dz * lz; }
 

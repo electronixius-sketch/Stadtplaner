@@ -59,6 +59,7 @@ class Game {
     this.uiAcc = 0;
     this.undoStack = [];
     this.tool = null;
+    this.toolModes = {};
     this.pending = null;
     this.started = false;
     this.lastPointer = null;
@@ -228,34 +229,42 @@ class Game {
     if (this.tool) this.tool.dispose();
     this.pending = null;
     this.tool = spec ? createTool(this, spec) : null;
+    this.toolKind = spec ? spec.kind : null;
     this.chunks.setGrid(!!spec && spec.kind === 'zone');
     this.preview.clear();
   }
 
-  pickTile(sx, sy) {
+  setToolMode(m) {
+    if (!this.tool) return;
+    this.toolModes[this.toolKind] = m;
+    this.tool.setMode(m);
+  }
+
+  // Bodenpunkt unter dem Finger (Weltkoordinaten, null außerhalb der Karte)
+  pickPoint(sx, sy) {
     const p = this.camera.ground(sx, sy, new THREE.Vector3());
     if (!p) return null;
-    const x = Math.floor(p.x), y = Math.floor(p.z);
-    if (!this.world.inb(x, y)) return null;
-    return { x, y };
+    const S = this.world.size;
+    if (p.x < 0 || p.z < 0 || p.x > S || p.z > S) return null;
+    return { x: p.x, z: p.z };
   }
 
   toolDown(sx, sy, touch) {
     this.lastPointer = { x: sx, y: sy, touch };
-    if (this.tool) this.tool.down(this.pickTile(sx, sy), touch);
+    if (this.tool) this.tool.down(this.pickPoint(sx, sy), touch);
   }
   toolMove(sx, sy) {
     if (this.lastPointer) { this.lastPointer.x = sx; this.lastPointer.y = sy; }
-    if (this.tool) this.tool.move(this.pickTile(sx, sy));
+    if (this.tool) this.tool.move(this.pickPoint(sx, sy));
   }
   toolUp(sx, sy, touch) {
-    if (this.tool) this.tool.up(this.pickTile(sx, sy), touch);
+    if (this.tool) this.tool.up(this.pickPoint(sx, sy), touch);
   }
   toolHover(sx, sy) {
     if (!this.tool) return;
     if (sx === null) { this.tool.hover(null); this.ui.setCursorLabel(null); return; }
     this.lastPointer = { x: sx, y: sy, touch: false };
-    this.tool.hover(this.pickTile(sx, sy));
+    this.tool.hover(this.pickPoint(sx, sy));
   }
   toolCancel() { if (this.tool) this.tool.cancel(); }
 
@@ -313,10 +322,14 @@ class Game {
     document.getElementById('viewsPanel').classList.remove('show');
     const hit = this.pickBuilding(sx, sy);
     if (hit && hit.b) { this.sound.click(); this.ui.showInfo(hit.b); return; }
-    if (hit && hit.tile >= 0 && this.world.road[hit.tile]) { this.sound.click(); this.ui.showRoadInfo(hit.tile); return; }
+    if (hit && hit.p) {
+      const near = this.world.net.nearestSeg(hit.p.x, hit.p.z, 1);
+      if (near && near.d <= near.seg.hw + 0.05) { this.sound.click(); this.ui.showRoadInfo(near.seg.id); return; }
+    }
     this.ui.closeInfo();
   }
 
+  // Strahl durch die Szene: erstes getroffenes Gebäude (gedrehtes Rechteck + Höhe) oder Bodenpunkt
   pickBuilding(sx, sy) {
     const cam = this.camera;
     const r = this.renderer.camera;
@@ -330,13 +343,11 @@ class Game {
     for (let k = 0; k < 4000; k++) {
       const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
       if (y < 0) {
-        const tx = Math.floor(x), tz = Math.floor(z);
-        if (!w.inb(tx, tz)) return null;
-        const b = w.getBuilding(tx, tz);
-        return b ? { b } : { tile: w.idx(tx, tz) };
+        if (!w.inb(Math.floor(x), Math.floor(z))) return null;
+        const b = w.buildingAt(x, z, 0);
+        return b ? { b } : { p: { x, z } };
       }
-      const tx = Math.floor(x), tz = Math.floor(z);
-      const b = w.getBuilding(tx, tz);
+      const b = w.buildingAt(x, z, 0);
       if (b && y <= (b.hgt || 0.5)) return { b };
       t += 0.06;
     }
@@ -345,12 +356,13 @@ class Game {
 
   highlight(b) {
     if (!b) {
-      uniforms.uHL.value.set(-10, -10, -10, -10);
+      uniforms.uHLS.value.set(0, 0);
       if (!this.tool) this.preview.hideRing();
       return;
     }
-    uniforms.uHL.value.set(b.x + 0.02, b.y + 0.02, b.x + b.W - 0.02, b.y + b.H - 0.02);
-    if (b.kind === 'service' && SERVICES[b.def].cover) this.preview.setRing(b.x + b.W / 2, b.y + b.H / 2, SERVICES[b.def].cover.r);
+    uniforms.uHL.value.set(b.cx, b.cz, Math.cos(b.rot), Math.sin(b.rot));
+    uniforms.uHLS.value.set(b.w / 2 - 0.02, b.d / 2 - 0.02);
+    if (b.kind === 'service' && SERVICES[b.def].cover) this.preview.setRing(b.cx, b.cz, SERVICES[b.def].cover.r);
     else this.preview.hideRing();
   }
 

@@ -1,8 +1,10 @@
 // Straßennetz als Graph: Knoten (Kreuzungen, Enden) und Segmente (quadratische Kurven).
-import { qSample, qSplit, distToPoly, polyAt, wrapAngle } from './geom.js';
+import { qSample, qSplit, qTangent, distToPoly, polyAt, wrapAngle } from './geom.js';
 import { ROAD_TYPES } from './config.js';
 
 const HB = 4; // Kantenlänge der Hash-Zellen
+const FIL = 0.22; // Radius der Bordsteinrundung an Kreuzungen
+const SMOOTH_DOT = -0.6; // zwei gleichartige Arme mit Knick < ~53° gehen nahtlos ineinander über
 
 export class RoadNetwork {
   constructor() {
@@ -181,6 +183,38 @@ export class RoadNetwork {
       m = Math.min(m, Math.abs(wrapAngle(d)) || Math.abs(d));
     }
     return m;
+  }
+
+  // Kreuzungsgeometrie: Arme (gegen den Uhrzeigersinn) mit Rückzugsabstand t, ab dem das Segment
+  // als Band gezeichnet wird. smooth: nahtloser Übergang zweier Segmente ohne Kreuzungsfläche.
+  junction(node) {
+    const arms = [];
+    for (const id of node.segs) {
+      const seg = this.segs.get(id);
+      const atA = seg.a === node.id;
+      const [tx, tz] = qTangent(seg.p0, seg.c, seg.p2, atA ? 0 : 1);
+      const dx = atA ? tx : -tx, dz = atA ? tz : -tz;
+      arms.push({ seg, atA, dx, dz, ang: Math.atan2(dz, dx), hw: seg.hw, t: 0 });
+    }
+    arms.sort((p, q) => p.ang - q.ang);
+    const info = { arms, smooth: false };
+    const n = arms.length;
+    if (n === 2 && arms[0].seg.type === arms[1].seg.type && arms[0].dx * arms[1].dx + arms[0].dz * arms[1].dz < SMOOTH_DOT) {
+      info.smooth = true;
+      return info;
+    }
+    if (n < 2) return info;
+    for (let i = 0; i < n; i++) {
+      const a = arms[i], b = arms[(i + 1) % n];
+      let gap = b.ang - a.ang;
+      if (i === n - 1) gap += Math.PI * 2;
+      if (gap > Math.PI - 0.1) continue;
+      const sn = Math.sin(gap), cs = Math.cos(gap);
+      a.t = Math.max(a.t, (b.hw + a.hw * cs) / sn + FIL);
+      b.t = Math.max(b.t, (a.hw + b.hw * cs) / sn + FIL);
+    }
+    for (const a of arms) a.t = Math.min(Math.max(a.t, a.hw * 0.5 + 0.1), a.seg.len * 0.45, 3);
+    return info;
   }
 
   computeComps() {

@@ -1,7 +1,7 @@
 // Atmosphäre: Fußgänger auf den Gehwegen und ziehende Wolken.
 import * as THREE from '../../vendor/three.module.min.js';
 import { MeshBuilder } from './builder.js';
-import { DIRS, ZONES } from '../config.js';
+import { ZONES } from '../config.js';
 import { uniforms } from './materials.js';
 
 const SHIRTS = [0xe03131, 0x1c7ed6, 0xf08c00, 0x2f9e44, 0xae3ec9, 0xf4f4f0, 0x343a40, 0xfab005, 0x0ca678, 0xd6336c].map((h) => new THREE.Color(h));
@@ -56,20 +56,19 @@ export class Life {
 
   reset() { this.peds.length = 0; }
 
-  spawn(world, sim) {
-    const S = world.size;
-    // Startpunkt: Zufahrt eines bewohnten Gebäudes oder eines Gewerbes
+  spawn(world) {
+    const net = world.net;
+    // Startpunkt: Gehweg vor einem bewohnten Gebäude oder einem Gewerbe
     for (let tries = 0; tries < 6; tries++) {
       const list = this.sources;
       if (!list || !list.length) return;
       const b = list[Math.floor(Math.random() * list.length)];
-      const t = b.access;
-      if (t < 0 || !world.road[t] || world.road[t] === 3) continue;
-      const mask = world.roadMask(t % S, (t / S) | 0);
-      const dirs = [0, 1, 2, 3].filter((d) => mask & (1 << d));
-      const dir = dirs.length ? dirs[Math.floor(Math.random() * dirs.length)] : Math.floor(Math.random() * 4);
+      const seg = net.segs.get(b.seg);
+      if (!seg || seg.type === 3) continue;
+      const p = net.at(seg, b.segS);
+      const side = (b.cx - p.x) * -p.tz + (b.cz - p.z) * p.tx >= 0 ? 1 : -1;
       this.peds.push({
-        tile: t, dir, side: Math.random() < 0.5 ? 1 : -1, t: Math.random(), speed: 0.25 + Math.random() * 0.2,
+        seg: seg.id, s: b.segS, dir: Math.random() < 0.5 ? 1 : -1, side, speed: 0.25 + Math.random() * 0.2,
         life: 20 + Math.random() * 40, color: SHIRTS[Math.floor(Math.random() * SHIRTS.length)], phase: Math.random() * 6,
       });
       return;
@@ -101,50 +100,51 @@ export class Life {
       this.srcDay = sim.day;
       this.sources = [];
       for (const b of world.buildings.values()) {
-        if (b.kind !== 'zone' || b.occ <= 0 || b.access < 0) continue;
+        if (b.kind !== 'zone' || b.occ <= 0 || b.seg < 0) continue;
         const k = ZONES[b.zone].key;
         if (k === 'R' || k === 'C' || k === 'O') this.sources.push(b);
       }
     }
     const night = uniforms.uNight.value;
     const target = Math.min(MAXPED, Math.round(sim.stats.pop * 0.04 * (1 - night * 0.7)));
-    const S = world.size;
     const sdt = dt * Math.max(0.5, speed);
     this.spawnAcc += dt * 12;
-    while (this.spawnAcc > 1 && this.peds.length < target) { this.spawnAcc -= 1; this.spawn(world, sim); }
+    while (this.spawnAcc > 1 && this.peds.length < target) { this.spawnAcc -= 1; this.spawn(world); }
     if (this.spawnAcc > 3) this.spawnAcc = 3;
     const arr = this.mesh.instanceMatrix.array, col = this.mesh.instanceColor.array;
     let n = 0;
+    const net = world.net, f = {};
     for (const p of this.peds) {
       p.life -= sdt;
-      if (p.life <= 0 || !world.road[p.tile]) continue;
-      p.t += p.speed * sdt;
-      while (p.t >= 1) {
-        p.t -= 1;
-        const x = p.tile % S, y = (p.tile / S) | 0;
-        const mask = world.roadMask(x, y);
-        let nd = p.dir;
-        if (!(mask & (1 << nd)) || Math.random() < 0.15) {
-          const opts = [0, 1, 2, 3].filter((d) => (mask & (1 << d)) && d !== ((p.dir + 2) & 3));
-          nd = opts.length ? opts[Math.floor(Math.random() * opts.length)] : (p.dir + 2) & 3;
-        }
-        const nx = x + DIRS[nd].dx, ny = y + DIRS[nd].dy;
-        if (nd !== ((p.dir + 2) & 3) && world.inb(nx, ny) && world.road[ny * S + nx] && world.road[ny * S + nx] !== 3) {
-          p.tile = ny * S + nx;
-          p.dir = nd;
+      let seg = net.segs.get(p.seg);
+      if (p.life <= 0 || !seg) continue;
+      p.s += p.dir * p.speed * sdt;
+      if (p.s < 0 || p.s > seg.len) {
+        // Am Knoten: auf ein anderes Segment wechseln oder umkehren
+        const nodeId = p.s < 0 ? seg.a : seg.b;
+        const node = net.nodes.get(nodeId);
+        const opts = node ? node.segs.filter((id) => id !== seg.id && net.segs.get(id).type !== 3) : [];
+        if (opts.length && Math.random() < 0.9) {
+          const next = net.segs.get(opts[Math.floor(Math.random() * opts.length)]);
+          const fromA = next.a === nodeId;
+          // Straßenseite beibehalten: links/rechts in Laufrichtung bleibt gleich
+          const lr = p.side * p.dir;
+          p.dir = fromA ? 1 : -1;
+          p.side = lr * p.dir;
+          p.s = fromA ? 0 : next.len;
+          p.seg = next.id;
+          seg = next;
         } else {
-          p.dir = (p.dir + 2) & 3;
-          p.side = -p.side;
+          p.s = Math.max(0, Math.min(seg.len, p.s));
+          p.dir = -p.dir;
         }
       }
       if (n >= MAXPED) break;
-      const x = p.tile % S, y = (p.tile / S) | 0;
-      const d = DIRS[p.dir];
-      const rx = -d.dy, rz = d.dx;
-      const off = world.road[p.tile] === 2 ? 0.45 : 0.42;
-      const px = x + 0.5 + d.dx * (p.t - 0.5) + rx * off * p.side;
-      const pz = y + 0.5 + d.dy * (p.t - 0.5) + rz * off * p.side;
-      const yaw = Math.atan2(d.dx, d.dy);
+      net.at(seg, p.s, f);
+      const off = seg.hw - (seg.type === 2 ? 0.06 : 0.075);
+      const px = f.x - f.tz * off * p.side;
+      const pz = f.z + f.tx * off * p.side;
+      const yaw = Math.atan2(f.tx * p.dir, f.tz * p.dir);
       const bob = Math.abs(Math.sin(time * 9 + p.phase)) * 0.006;
       const s = Math.sin(yaw), c = Math.cos(yaw);
       const o = n * 16;

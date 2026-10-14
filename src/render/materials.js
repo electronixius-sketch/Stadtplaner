@@ -9,7 +9,8 @@ export const uniforms = {
   uOverlayTex: { value: null },
   uOverlayOn: { value: 0 },
   uMapSize: { value: MAP_SIZE },
-  uHL: { value: new THREE.Vector4(-10, -10, -10, -10) },
+  uHL: { value: new THREE.Vector4(0, 0, 1, 0) }, // Markierung: Mitte x/z, cos/sin der Drehung
+  uHLS: { value: new THREE.Vector2(0, 0) }, // halbe Breite/Tiefe (0 = aus)
   uHLColor: { value: new THREE.Color(0x3fa9ff) },
 };
 
@@ -44,6 +45,7 @@ uniform sampler2D uOverlayTex;
 uniform float uOverlayOn;
 uniform float uMapSize;
 uniform vec4 uHL;
+uniform vec2 uHLS;
 uniform vec3 uHLColor;
 varying float vWin;
 varying vec3 vWPos;
@@ -62,9 +64,10 @@ const FRAG_BODY = /* glsl */`
   bool noLight = code > 5.5;
   if (noLight) code -= 5.0;
   if (vert > 0.6 && (abs(code - 1.0) < 0.5 || abs(code - 3.0) < 0.5 || abs(code - 4.0) < 0.5)) {
-    bool xFacing = abs(vWNorm.x) > abs(vWNorm.z);
-    float along = xFacing ? vWPos.z : vWPos.x;
-    float plane = xFacing ? vWPos.x : vWPos.z;
+    // Fensterraster entlang der (beliebig gedrehten) Wand
+    vec2 nh = normalize(vWNorm.xz + vec2(1e-5, 0.0));
+    float along = dot(vWPos.xz, vec2(-nh.y, nh.x));
+    float plane = dot(vWPos.xz, nh);
     float floorH = 0.22; float colW = 0.2; vec4 r = vec4(0.24, 0.76, 0.3, 0.8);
     vec3 glass = vec3(0.035, 0.05, 0.07);
     float litP = 0.42;
@@ -91,8 +94,10 @@ const FRAG_BODY = /* glsl */`
   if (abs(code - 2.0) < 0.5 && !noLight) {
     totalEmissiveRadiance += diffuseColor.rgb * (0.1 + uNight * 1.8);
   }
-  if (uHL.x > -5.0 && vWPos.x > uHL.x && vWPos.x < uHL.z && vWPos.z > uHL.y && vWPos.z < uHL.w) {
-    totalEmissiveRadiance += uHLColor * (0.18 + 0.08 * sin(uTime * 5.0));
+  if (uHLS.x > 0.0) {
+    vec2 d = vWPos.xz - uHL.xy;
+    vec2 l = vec2(dot(d, uHL.zw), dot(d, vec2(-uHL.w, uHL.z)));
+    if (abs(l.x) < uHLS.x && abs(l.y) < uHLS.y) totalEmissiveRadiance += uHLColor * (0.18 + 0.08 * sin(uTime * 5.0));
   }
   if (uOverlayOn > 0.5) {
     vec2 ouv = vWPos.xz / uMapSize;

@@ -133,7 +133,14 @@ body.sub-open #feed, body.sub-open #legend { opacity: 0; transition: opacity 0.2
   align-items: center; max-width: min(640px, calc(100vw - 420px)); font-size: 14px;
 }
 #hint.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-#hint button { width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); flex: none; }
+#hint > button { width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); flex: none; }
+#hintModes { display: flex; gap: 6px; flex: none; }
+#hintModes.hidden { display: none; }
+#hintModes .mode {
+  height: 40px; padding: 0 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); border: 1px solid transparent;
+  font-size: 13.5px; font-weight: 650; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+#hintModes .mode.active { background: rgba(77, 171, 247, 0.28); border-color: rgba(116, 192, 252, 0.8); }
 #itemDesc {
   position: fixed; left: 50%; bottom: calc(var(--bar-h) + 150px + var(--safe-b)); transform: translateX(-50%); padding: 8px 14px;
   border-radius: 12px; font-size: 13.5px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 14; max-width: 80vw;

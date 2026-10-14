@@ -4,7 +4,7 @@ import { makeNoise } from '../noise.js';
 import { rgb, mixc, scalec, clamp, smoothstep } from '../util.js';
 import { T_WATER, T_ROCK, WATER_LEVEL } from '../config.js';
 import { MeshBuilder } from './builder.js';
-import { addRoadTile } from './roadGeo.js';
+import { addStraightRoad } from './roadGeo.js';
 import { createWaterMaterial } from './materials.js';
 
 const G1 = rgb(0x84b05e), G2 = rgb(0x6f9c4c), G3 = rgb(0x93b86b), MEADOW = rgb(0xa8bf72);
@@ -94,8 +94,7 @@ export function createTerrain(world, mats) {
 
   // Autobahn ins Umland
   const B = new MeshBuilder();
-  const hy = world.ext.hwY;
-  for (let x = -P; x < 0; x++) addRoadTile(B, x, hy, 3, 10, false);
+  addStraightRoad(B, -P, world.highway.z, world.highway.x0, world.highway.z, 3);
   const outRoad = new THREE.Mesh(B.toGeometry(), mats.world);
   outRoad.receiveShadow = true;
   outRoad.matrixAutoUpdate = false;

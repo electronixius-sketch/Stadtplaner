@@ -123,12 +123,12 @@ export class Effects {
         else if (b.kind === 'zone') {
           if (b.built < 1 && b.level === 1) continue;
           if (b.abandoned) k = 'abandoned';
-          else if (b.access < 0) k = 'road';
+          else if (b.seg < 0) k = 'road';
           else if (!b.power) k = 'power';
           else if (!b.water) k = 'water';
           else if (!b.sewage) k = 'sewage';
           else if (!b.garbage && sim.stats.pop > 400) k = 'garbage';
-        } else if (b.access < 0) k = 'road';
+        } else if (b.seg < 0) k = 'road';
         else if (!b.power) k = 'power';
         if (k) list.push([b, k]);
         if (list.length >= 400) break;
@@ -147,7 +147,7 @@ export class Effects {
         const [b, k] = list[i];
         s.visible = true;
         s.material = this.iconMats[k];
-        s.position.set(b.x + b.W / 2, (b.hgt || 0.5) + 0.35, b.y + b.H / 2);
+        s.position.set(b.cx, (b.hgt || 0.5) + 0.35, b.cz);
         s.userData.base = s.position.y;
         s.userData.phase = b.id * 0.7;
       } else s.visible = false;
@@ -199,17 +199,19 @@ export class Effects {
         }
         for (const b of this.burning || []) {
           const top = (b.hgt || 0.5) * 0.8;
+          const c = Math.cos(b.rot), sn = Math.sin(b.rot);
           for (let k = 0; k < 5; k++) {
             if (this.fparts.length < 300) {
+              const u = (Math.random() - 0.5) * Math.max(0.1, b.w - 0.4), v = (Math.random() - 0.5) * Math.max(0.1, b.d - 0.4);
               this.fparts.push({
-                x: b.x + 0.2 + Math.random() * (b.W - 0.4), y: top * (0.35 + Math.random() * 0.75), z: b.y + 0.2 + Math.random() * (b.H - 0.4),
+                x: b.cx + c * u - sn * v, y: top * (0.35 + Math.random() * 0.75), z: b.cz + sn * u + c * v,
                 vy: 0.5 + Math.random() * 0.4, age: 0, life: 0.6 + Math.random() * 0.5, size: 0.11 + Math.random() * 0.1,
               });
             }
           }
           if (this.parts.length < MAXP) {
             this.parts.push({
-              x: b.x + b.W / 2 + (Math.random() - 0.5) * 0.3, y: top + 0.1, z: b.y + b.H / 2 + (Math.random() - 0.5) * 0.3,
+              x: b.cx + (Math.random() - 0.5) * 0.3, y: top + 0.1, z: b.cz + (Math.random() - 0.5) * 0.3,
               vx: 0.15, vy: 0.5, vz: 0.05, age: 0, life: 5, size: 0.14, grow: 0.25, c: 0.18,
             });
           }

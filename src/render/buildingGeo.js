@@ -513,7 +513,8 @@ function construction(B, b, w, d, rng) {
   const target = (TARGET_H[b.zone] || [0.6])[Math.min(b.level, 5) - 1] || 0.6;
   const p = clamp(b.built, 0, 1);
   B.flat(0.03, 0.03, w - 0.03, d - 0.03, 0.013, C.dirt);
-  const x0 = 0.16, x1 = w - 0.16, z0 = 0.18, z1 = d - 0.16;
+  // Auf tiefen Grundstücken entsteht das Gebäude vorne, dahinter bleibt Garten bzw. Hof
+  const x0 = 0.16, x1 = w - 0.16, z0 = 0.18, z1 = Math.min(d - 0.16, z0 + 0.62 + (b.zone === 1 ? 0 : (d - 1) * 0.42));
   const h = 0.04 + target * p;
   B.box(x0, 0, z0, x1, h, z1, C.concL, 0, C.conc);
   const sh = h + 0.08;
@@ -924,7 +925,7 @@ function genericService(B, w, d) {
 const ZONE_GEN = { 1: genHouse, 2: genApartment, 3: genShop, 4: genMall, 5: genIndustry, 6: genOffice };
 
 export function addBuilding(B, b) {
-  const { w, d } = B.lotFrame(b.x, b.y, b.W, b.H, b.dir);
+  const { w, d } = B.rotFrame(b.cx, b.cz, b.rot, b.w, b.d);
   const rng = mulberry32(b.seed + b.level * 7919);
   B.tint = b.abandoned ? (c) => gray(c, 0.55) : null;
   B.winOff = b.abandoned || !b.power || (b.kind === 'zone' && b.occ === 0 && b.built >= 1);
